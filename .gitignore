@@ -1,0 +1,20 @@
+# Build artifacts
+bin/
+dist/
+coverage.out
+*.cover.out
+ar_cover.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated config (from ecrspectre init)
+.ecrspectre.yaml
+.ecrspectre.yml
+ecrspectre-policy.json

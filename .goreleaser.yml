@@ -1,0 +1,56 @@
+version: 2
+
+builds:
+  - id: ecrspectre
+    main: ./cmd/ecrspectre/
+    binary: ecrspectre
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+brews:
+  - repository:
+      owner: ppiankov
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/ppiankov/ecrspectre"
+    description: "Container registry waste auditor — finds stale, untagged, and oversized images in AWS ECR and GCP Artifact Registry"
+    license: MIT
+    version: "{{ .Version }}"
+    install: |
+      bin.install "ecrspectre"
+    test: |
+      system "#{bin}/ecrspectre", "version"
