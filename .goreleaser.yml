@@ -49,7 +49,6 @@ brews:
     homepage: "https://github.com/ppiankov/ecrspectre"
     description: "Container registry waste auditor — finds stale, untagged, and oversized images in AWS ECR and GCP Artifact Registry"
     license: MIT
-    version: "{{ .Version }}"
     install: |
       bin.install "ecrspectre"
     test: |
