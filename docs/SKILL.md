@@ -21,6 +21,7 @@ go install github.com/ppiankov/ecrspectre/cmd/ecrspectre@latest
 Scans ECR repositories for security findings.
 
 **Flags:**
+- `--format json` — output as JSON (ANCC standard, alias for --output json)
 - `--output json` — output as JSON (spectre/v1 envelope)
 - `--output sarif` — SARIF format for CI integration
 - `--output spectrehub` — SpectreHub aggregator format
