@@ -96,18 +96,7 @@ func (s *ARScanner) scanRepository(ctx context.Context, cfg registry.ScanConfig,
 		for _, img := range images {
 			totalWaste += pricing.MonthlyStorageCost("artifactregistry", repo.Location, img.SizeBytes)
 		}
-		result.Findings = append(result.Findings, registry.Finding{
-			ID:                    registry.FindingUnusedRepo,
-			Severity:              registry.SeverityLow,
-			ResourceType:          registry.ResourceRepository,
-			ResourceID:            repo.RepoID,
-			Region:                repo.Location,
-			Message:               fmt.Sprintf("All %d images are stale", len(images)),
-			EstimatedMonthlyWaste: totalWaste,
-			Metadata: map[string]any{
-				"image_count": len(images),
-			},
-		})
+		result.Findings = append(result.Findings, registry.AllStaleRepoFinding(repo.RepoID, repo.Location, len(images), totalWaste))
 	}
 }
 
@@ -172,20 +161,7 @@ func (s *ARScanner) analyzeImage(cfg registry.ScanConfig, repo Repository, img D
 
 	// Large image
 	if cfg.MaxSizeBytes > 0 && sizeBytes > cfg.MaxSizeBytes {
-		findings = append(findings, registry.Finding{
-			ID:                    registry.FindingLargeImage,
-			Severity:              registry.SeverityMedium,
-			ResourceType:          registry.ResourceImage,
-			ResourceID:            imageID,
-			ResourceName:          resourceName,
-			Region:                repo.Location,
-			Message:               fmt.Sprintf("Image is %.0f MB (threshold: %d MB)", sizeMB, cfg.MaxSizeBytes/(1024*1024)),
-			EstimatedMonthlyWaste: cost,
-			Metadata: map[string]any{
-				"size_bytes":      sizeBytes,
-				"threshold_bytes": cfg.MaxSizeBytes,
-			},
-		})
+		findings = append(findings, registry.LargeImageFinding(imageID, resourceName, repo.Location, sizeBytes, sizeMB, cost, cfg.MaxSizeBytes))
 	}
 
 	// Multi-arch bloat

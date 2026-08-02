@@ -96,10 +96,7 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	slog.Info("Scanning ECR", "region", resolvedRegion)
 
 	// Build scan config
-	excludeIDs := make(map[string]bool, len(cfg.Exclude.ResourceIDs))
-	for _, id := range cfg.Exclude.ResourceIDs {
-		excludeIDs[id] = true
-	}
+	excludeIDs := buildExcludeIDs(cfg.Exclude.ResourceIDs)
 	excludeTags := parseExcludeTags(cfg.Exclude.Tags, awsFlags.excludeTags)
 
 	scanCfg := registry.ScanConfig{
@@ -115,12 +112,7 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	// Run scanner
 	scanner := ecr.NewECRScanner(client.NewECRClient(), resolvedRegion, awsFlags.includeScan)
 
-	var progressFn func(registry.ScanProgress)
-	if !awsFlags.noProgress {
-		progressFn = func(p registry.ScanProgress) {
-			fmt.Fprintf(os.Stderr, "[%s] %s\n", p.Region, p.Message)
-		}
-	}
+	progressFn := stderrProgressFn(awsFlags.noProgress)
 
 	result := scanner.Scan(ctx, scanCfg, progressFn)
 
@@ -158,26 +150,16 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	return reporter.Generate(data)
 }
 
-// applyAWSConfigDefaults applies config values only for flags the user did NOT
-// set explicitly (WO-7: replaces the flag==default sentinel that let config
-// override an explicit --stale-days 90). Also wires config timeout.
+// applyAWSConfigDefaults applies config defaults for unset AWS flags. WO-8:
+// delegates to the shared applyConfigDefaults so the precedence logic lives once.
 func applyAWSConfigDefaults(cmd *cobra.Command, cfg config.Config) {
-	flags := cmd.Flags()
-	if !flags.Changed("format") && cfg.Format != "" {
-		awsFlags.format = cfg.Format
-	}
-	if !flags.Changed("stale-days") && cfg.StaleDays > 0 {
-		awsFlags.staleDays = cfg.StaleDays
-	}
-	if !flags.Changed("max-size") && cfg.MaxSizeMB > 0 {
-		awsFlags.maxSizeMB = cfg.MaxSizeMB
-	}
-	if !flags.Changed("min-monthly-cost") && cfg.MinMonthlyCost > 0 {
-		awsFlags.minMonthlyCost = cfg.MinMonthlyCost
-	}
-	if !flags.Changed("timeout") && cfg.TimeoutDuration() > 0 {
-		awsFlags.timeout = cfg.TimeoutDuration()
-	}
+	applyConfigDefaults(cmd, cfg, scanFlagRefs{
+		format:         &awsFlags.format,
+		staleDays:      &awsFlags.staleDays,
+		maxSizeMB:      &awsFlags.maxSizeMB,
+		minMonthlyCost: &awsFlags.minMonthlyCost,
+		timeout:        &awsFlags.timeout,
+	})
 }
 
 func selectReporter(format, outputFile string) (report.Reporter, error) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/ppiankov/ecrspectre/internal/analyzer"
@@ -94,10 +93,7 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	defer func() { _ = client.Close() }()
 
 	// Build scan config
-	excludeIDs := make(map[string]bool, len(cfg.Exclude.ResourceIDs))
-	for _, id := range cfg.Exclude.ResourceIDs {
-		excludeIDs[id] = true
-	}
+	excludeIDs := buildExcludeIDs(cfg.Exclude.ResourceIDs)
 	excludeTags := parseExcludeTags(cfg.Exclude.Tags, gcpFlags.excludeTags)
 
 	scanCfg := registry.ScanConfig{
@@ -113,12 +109,7 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	// Run scanner
 	scanner := artifactregistry.NewARScanner(client, gcpFlags.project, locations)
 
-	var progressFn func(registry.ScanProgress)
-	if !gcpFlags.noProgress {
-		progressFn = func(p registry.ScanProgress) {
-			fmt.Fprintf(os.Stderr, "[%s] %s\n", p.Region, p.Message)
-		}
-	}
+	progressFn := stderrProgressFn(gcpFlags.noProgress)
 
 	result := scanner.Scan(ctx, scanCfg, progressFn)
 
@@ -156,27 +147,15 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	return reporter.Generate(data)
 }
 
-// applyGCPConfigDefaults applies config values only for flags the user did NOT
-// set explicitly (WO-7: replaces the flag==default sentinel). Also wires config
-// timeout and resolves project from config before the required-flag check.
+// applyGCPConfigDefaults applies config defaults for unset GCP flags. WO-8:
+// delegates to the shared applyConfigDefaults (project included via refs).
 func applyGCPConfigDefaults(cmd *cobra.Command, cfg config.Config) {
-	flags := cmd.Flags()
-	if !flags.Changed("format") && cfg.Format != "" {
-		gcpFlags.format = cfg.Format
-	}
-	if !flags.Changed("stale-days") && cfg.StaleDays > 0 {
-		gcpFlags.staleDays = cfg.StaleDays
-	}
-	if !flags.Changed("max-size") && cfg.MaxSizeMB > 0 {
-		gcpFlags.maxSizeMB = cfg.MaxSizeMB
-	}
-	if !flags.Changed("min-monthly-cost") && cfg.MinMonthlyCost > 0 {
-		gcpFlags.minMonthlyCost = cfg.MinMonthlyCost
-	}
-	if !flags.Changed("timeout") && cfg.TimeoutDuration() > 0 {
-		gcpFlags.timeout = cfg.TimeoutDuration()
-	}
-	if !flags.Changed("project") && cfg.Project != "" {
-		gcpFlags.project = cfg.Project
-	}
+	applyConfigDefaults(cmd, cfg, scanFlagRefs{
+		format:         &gcpFlags.format,
+		staleDays:      &gcpFlags.staleDays,
+		maxSizeMB:      &gcpFlags.maxSizeMB,
+		minMonthlyCost: &gcpFlags.minMonthlyCost,
+		timeout:        &gcpFlags.timeout,
+		project:        &gcpFlags.project,
+	})
 }
