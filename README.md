@@ -49,14 +49,15 @@ make build
 ### Usage
 
 ```sh
-ecrspectre scan --region us-east-1 --format json
+ecrspectre aws --region us-east-1 --format json
 ```
 
 ## CLI commands
 
 | Command | Description |
 |---------|-------------|
-| `ecrspectre scan` | Scan container registries for stale and wasteful images |
+| `ecrspectre aws` | Audit AWS ECR repositories for waste |
+| `ecrspectre gcp` | Audit GCP Artifact Registry repositories for waste |
 | `ecrspectre init` | Generate IAM policy and config file |
 | `ecrspectre version` | Print version |
 

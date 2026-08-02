@@ -22,6 +22,9 @@ type ECRScanner struct {
 	now         time.Time // injectable for testing
 }
 
+// Compile-time assertion that ECRScanner satisfies registry.RegistryScanner.
+var _ registry.RegistryScanner = (*ECRScanner)(nil)
+
 // NewECRScanner creates a scanner for the given ECR client and region.
 func NewECRScanner(client ECRAPI, region string, includeScan bool) *ECRScanner {
 	return &ECRScanner{

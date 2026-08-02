@@ -18,6 +18,9 @@ type ARScanner struct {
 	now       time.Time // injectable for testing
 }
 
+// Compile-time assertion that ARScanner satisfies registry.RegistryScanner.
+var _ registry.RegistryScanner = (*ARScanner)(nil)
+
 // NewARScanner creates a scanner for the given Artifact Registry client.
 func NewARScanner(client ARAPI, project string, locations []string) *ARScanner {
 	return &ARScanner{
