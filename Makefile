@@ -1,4 +1,4 @@
-.PHONY: build test clean install fmt lint vet deps coverage help
+.PHONY: build test clean install fmt lint vet deps coverage verify help
 
 BINARY_NAME := ecrspectre
 BUILD_DIR   := ./bin
@@ -53,5 +53,11 @@ deps:
 coverage:
 	go test -race -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
+
+## verify: Pre-push gate — vet, lint, and race tests (mirrors .verify)
+verify:
+	go vet ./...
+	golangci-lint run --timeout=5m
+	go test -race ./...
 
 .DEFAULT_GOAL := help
