@@ -21,7 +21,6 @@ cd ecrspectre && make build
 ECRSpectre reads `.ecrspectre.yaml` from the current directory:
 
 ```yaml
-provider: aws
 regions:
   - us-east-1
   - eu-west-1
