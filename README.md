@@ -30,6 +30,14 @@ brew tap ppiankov/tap
 brew install ecrspectre
 ```
 
+### Windows
+
+Download the latest binary from [Releases](https://github.com/ppiankov/ecrspectre/releases), or install with Go:
+
+```sh
+go install github.com/ppiankov/ecrspectre/cmd/ecrspectre@latest
+```
+
 ### From source
 
 ```sh
