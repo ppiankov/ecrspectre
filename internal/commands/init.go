@@ -71,9 +71,6 @@ func writeIfNotExists(path, content string, force bool) error {
 const sampleConfig = `# ecrspectre configuration
 # See: https://github.com/ppiankov/ecrspectre
 
-# Cloud provider: aws or gcp
-# provider: aws
-
 # AWS profile (or set AWS_PROFILE env var)
 # profile: default
 

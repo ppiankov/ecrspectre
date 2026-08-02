@@ -10,8 +10,9 @@ import (
 )
 
 // Config holds ecrspectre configuration loaded from .ecrspectre.yaml.
+// Provider is intentionally absent: the cloud provider is chosen by the
+// `aws`/`gcp` subcommand, so a config-level provider key would be ambiguous.
 type Config struct {
-	Provider       string   `yaml:"provider"`
 	Regions        []string `yaml:"regions"`
 	Profile        string   `yaml:"profile"`
 	Project        string   `yaml:"project"`
@@ -36,14 +37,6 @@ func (c Config) TimeoutDuration() time.Duration {
 	}
 	d, _ := time.ParseDuration(c.Timeout)
 	return d
-}
-
-// MaxSizeBytes returns the max image size threshold in bytes.
-func (c Config) MaxSizeBytes() int64 {
-	if c.MaxSizeMB <= 0 {
-		return 1024 * 1024 * 1024 // 1 GB default
-	}
-	return int64(c.MaxSizeMB) * 1024 * 1024
 }
 
 // Load searches for .ecrspectre.yaml or .ecrspectre.yml in the given directory

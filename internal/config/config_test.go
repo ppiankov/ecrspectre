@@ -9,8 +9,7 @@ import (
 
 func TestLoadYAML(t *testing.T) {
 	dir := t.TempDir()
-	content := `provider: aws
-regions:
+	content := `regions:
   - us-east-1
   - eu-west-1
 profile: dev
@@ -34,9 +33,6 @@ exclude:
 		t.Fatalf("Load() error: %v", err)
 	}
 
-	if cfg.Provider != "aws" {
-		t.Errorf("Provider = %q, want %q", cfg.Provider, "aws")
-	}
 	if len(cfg.Regions) != 2 {
 		t.Errorf("Regions len = %d, want 2", len(cfg.Regions))
 	}
@@ -88,8 +84,8 @@ func TestLoadNoFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error: %v", err)
 	}
-	if cfg.Provider != "" {
-		t.Errorf("Provider = %q, want empty", cfg.Provider)
+	if cfg.StaleDays != 0 {
+		t.Errorf("StaleDays = %d, want 0 for missing config", cfg.StaleDays)
 	}
 }
 
@@ -119,25 +115,6 @@ func TestTimeoutDuration(t *testing.T) {
 		got := cfg.TimeoutDuration()
 		if got != tt.want {
 			t.Errorf("TimeoutDuration(%q) = %v, want %v", tt.timeout, got, tt.want)
-		}
-	}
-}
-
-func TestMaxSizeBytes(t *testing.T) {
-	tests := []struct {
-		mb   int
-		want int64
-	}{
-		{0, 1024 * 1024 * 1024},  // default 1GB
-		{-1, 1024 * 1024 * 1024}, // default 1GB
-		{500, 500 * 1024 * 1024},
-		{1024, 1024 * 1024 * 1024},
-	}
-	for _, tt := range tests {
-		cfg := Config{MaxSizeMB: tt.mb}
-		got := cfg.MaxSizeBytes()
-		if got != tt.want {
-			t.Errorf("MaxSizeBytes(mb=%d) = %d, want %d", tt.mb, got, tt.want)
 		}
 	}
 }

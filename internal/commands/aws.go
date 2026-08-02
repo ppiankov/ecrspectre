@@ -54,18 +54,22 @@ func init() {
 
 func runAWS(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
+
+	// Load config and apply defaults. Explicit flags beat config values: an
+	// explicit --stale-days 90 must win over config stale_days even though 90
+	// is also the flag default, so precedence is decided via Flags().Changed().
+	// Config (including timeout) is resolved here so the context below uses it.
+	cfg, err := config.Load(".")
+	if err != nil {
+		slog.Warn("Failed to load config file", "error", err)
+	}
+	applyAWSConfigDefaults(cmd, cfg)
+
 	if awsFlags.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, awsFlags.timeout)
 		defer cancel()
 	}
-
-	// Load config and apply defaults
-	cfg, err := config.Load(".")
-	if err != nil {
-		slog.Warn("Failed to load config file", "error", err)
-	}
-	applyAWSConfigDefaults(cfg)
 
 	// Resolve profile
 	profile := awsFlags.profile
@@ -154,18 +158,25 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	return reporter.Generate(data)
 }
 
-func applyAWSConfigDefaults(cfg config.Config) {
-	if awsFlags.format == "text" && cfg.Format != "" {
+// applyAWSConfigDefaults applies config values only for flags the user did NOT
+// set explicitly (WO-7: replaces the flag==default sentinel that let config
+// override an explicit --stale-days 90). Also wires config timeout.
+func applyAWSConfigDefaults(cmd *cobra.Command, cfg config.Config) {
+	flags := cmd.Flags()
+	if !flags.Changed("format") && cfg.Format != "" {
 		awsFlags.format = cfg.Format
 	}
-	if awsFlags.staleDays == 90 && cfg.StaleDays > 0 {
+	if !flags.Changed("stale-days") && cfg.StaleDays > 0 {
 		awsFlags.staleDays = cfg.StaleDays
 	}
-	if awsFlags.maxSizeMB == 1024 && cfg.MaxSizeMB > 0 {
+	if !flags.Changed("max-size") && cfg.MaxSizeMB > 0 {
 		awsFlags.maxSizeMB = cfg.MaxSizeMB
 	}
-	if awsFlags.minMonthlyCost == 0.10 && cfg.MinMonthlyCost > 0 {
+	if !flags.Changed("min-monthly-cost") && cfg.MinMonthlyCost > 0 {
 		awsFlags.minMonthlyCost = cfg.MinMonthlyCost
+	}
+	if !flags.Changed("timeout") && cfg.TimeoutDuration() > 0 {
+		awsFlags.timeout = cfg.TimeoutDuration()
 	}
 }
 

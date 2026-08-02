@@ -54,23 +54,26 @@ func init() {
 }
 
 func runGCP(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+
+	// Load config and apply defaults. Explicit flags beat config values via
+	// Flags().Changed(); project from config is resolved here so the required
+	// check below sees the config-supplied value.
+	cfg, err := config.Load(".")
+	if err != nil {
+		slog.Warn("Failed to load config file", "error", err)
+	}
+	applyGCPConfigDefaults(cmd, cfg)
+
 	if gcpFlags.project == "" {
-		return fmt.Errorf("--project is required for GCP scans")
+		return fmt.Errorf("--project is required for GCP scans (set --project or config \"project\")")
 	}
 
-	ctx := cmd.Context()
 	if gcpFlags.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, gcpFlags.timeout)
 		defer cancel()
 	}
-
-	// Load config and apply defaults
-	cfg, err := config.Load(".")
-	if err != nil {
-		slog.Warn("Failed to load config file", "error", err)
-	}
-	applyGCPConfigDefaults(cfg)
 
 	// Resolve locations
 	locations := gcpFlags.locations
@@ -153,20 +156,27 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	return reporter.Generate(data)
 }
 
-func applyGCPConfigDefaults(cfg config.Config) {
-	if gcpFlags.format == "text" && cfg.Format != "" {
+// applyGCPConfigDefaults applies config values only for flags the user did NOT
+// set explicitly (WO-7: replaces the flag==default sentinel). Also wires config
+// timeout and resolves project from config before the required-flag check.
+func applyGCPConfigDefaults(cmd *cobra.Command, cfg config.Config) {
+	flags := cmd.Flags()
+	if !flags.Changed("format") && cfg.Format != "" {
 		gcpFlags.format = cfg.Format
 	}
-	if gcpFlags.staleDays == 90 && cfg.StaleDays > 0 {
+	if !flags.Changed("stale-days") && cfg.StaleDays > 0 {
 		gcpFlags.staleDays = cfg.StaleDays
 	}
-	if gcpFlags.maxSizeMB == 1024 && cfg.MaxSizeMB > 0 {
+	if !flags.Changed("max-size") && cfg.MaxSizeMB > 0 {
 		gcpFlags.maxSizeMB = cfg.MaxSizeMB
 	}
-	if gcpFlags.minMonthlyCost == 0.10 && cfg.MinMonthlyCost > 0 {
+	if !flags.Changed("min-monthly-cost") && cfg.MinMonthlyCost > 0 {
 		gcpFlags.minMonthlyCost = cfg.MinMonthlyCost
 	}
-	if gcpFlags.project == "" && cfg.Project != "" {
+	if !flags.Changed("timeout") && cfg.TimeoutDuration() > 0 {
+		gcpFlags.timeout = cfg.TimeoutDuration()
+	}
+	if !flags.Changed("project") && cfg.Project != "" {
 		gcpFlags.project = cfg.Project
 	}
 }
