@@ -10,7 +10,7 @@ import (
 )
 
 // Config holds ecrspectre configuration loaded from .ecrspectre.yaml.
-// Provider is intentionally absent: the cloud provider is chosen by the
+// Provider is intentionally absent (WO-7): the cloud provider is chosen by the
 // `aws`/`gcp` subcommand, so a config-level provider key would be ambiguous.
 type Config struct {
 	Regions        []string `yaml:"regions"`

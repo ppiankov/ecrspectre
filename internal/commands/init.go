@@ -68,6 +68,8 @@ func writeIfNotExists(path, content string, force bool) error {
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
+// sampleConfig is the .ecrspectre.yaml template written by `init` (WO-7: no
+// provider key — the cloud is chosen by the aws/gcp subcommand).
 const sampleConfig = `# ecrspectre configuration
 # See: https://github.com/ppiankov/ecrspectre
 
