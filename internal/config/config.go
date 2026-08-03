@@ -9,25 +9,38 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config holds ecrspectre configuration loaded from .ecrspectre.yaml.
-// Provider is intentionally absent (WO-7): the cloud provider is chosen by the
-// `aws`/`gcp` subcommand, so a config-level provider key would be ambiguous.
+// WO-7: Config holds ecrspectre configuration loaded from .ecrspectre.yaml.
+// Provider is intentionally absent — the cloud provider is chosen by the aws/gcp
+// subcommand, so a config-level provider key would be ambiguous.
 type Config struct {
-	Regions        []string `yaml:"regions"`
-	Profile        string   `yaml:"profile"`
-	Project        string   `yaml:"project"`
-	StaleDays      int      `yaml:"stale_days"`
-	MaxSizeMB      int      `yaml:"max_size_mb"`
-	MinMonthlyCost float64  `yaml:"min_monthly_cost"`
-	Format         string   `yaml:"format"`
-	Timeout        string   `yaml:"timeout"`
-	Exclude        Exclude  `yaml:"exclude"`
+	Regions        []string  `yaml:"regions"`
+	Profile        string    `yaml:"profile"`
+	Project        string    `yaml:"project"`
+	StaleDays      int       `yaml:"stale_days"`
+	MaxSizeMB      int       `yaml:"max_size_mb"`
+	MinMonthlyCost float64   `yaml:"min_monthly_cost"`
+	Format         string    `yaml:"format"`
+	Timeout        string    `yaml:"timeout"`
+	Exclude        Exclude   `yaml:"exclude"`
+	Retention      Retention `yaml:"retention"`
 }
 
 // Exclude defines resources to skip during scanning.
 type Exclude struct {
 	ResourceIDs []string `yaml:"resource_ids"`
 	Tags        []string `yaml:"tags"`
+}
+
+// WO-13: Retention configures which images to keep regardless of waste findings;
+// consumed by the retention engine via the lifecycle-policy generator and the
+// finding classifier.
+type Retention struct {
+	KeepLatestN         int      `yaml:"keep_latest_n" json:"keep_latest_n,omitempty"`
+	KeepLatestNPerMajor bool     `yaml:"keep_latest_n_per_major" json:"keep_latest_n_per_major,omitempty"`
+	KeepLastPerBranch   bool     `yaml:"keep_last_per_branch" json:"keep_last_per_branch,omitempty"`
+	BranchPattern       string   `yaml:"branch_pattern" json:"branch_pattern,omitempty"`
+	ProtectTags         []string `yaml:"protect_tags" json:"protect_tags,omitempty"`
+	MinAgeDays          int      `yaml:"min_age_days" json:"min_age_days,omitempty"`
 }
 
 // TimeoutDuration parses the timeout string as a duration.

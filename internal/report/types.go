@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ppiankov/ecrspectre/internal/analyzer"
+	"github.com/ppiankov/ecrspectre/internal/config"
 	"github.com/ppiankov/ecrspectre/internal/registry"
 )
 
@@ -31,13 +32,14 @@ type Target struct {
 	URIHash string `json:"uri_hash"`
 }
 
-// ReportConfig captures the scan configuration used.
+// WO-14: ReportConfig captures the scan configuration used (carries Retention for the policy/delete reporters).
 type ReportConfig struct {
-	Provider       string   `json:"provider"`
-	Regions        []string `json:"regions"`
-	StaleDays      int      `json:"stale_days"`
-	MaxSizeMB      int      `json:"max_size_mb"`
-	MinMonthlyCost float64  `json:"min_monthly_cost"`
+	Provider       string           `json:"provider"`
+	Regions        []string         `json:"regions"`
+	StaleDays      int              `json:"stale_days"`
+	MaxSizeMB      int              `json:"max_size_mb"`
+	MinMonthlyCost float64          `json:"min_monthly_cost"`
+	Retention      config.Retention `json:"retention,omitempty"`
 }
 
 // TextReporter generates human-readable terminal output.
