@@ -28,7 +28,10 @@ Audits AWS ECR repositories for stale, untagged, oversized, and (optionally) vul
 - `--stale-days` — image age threshold in days since last pull (default 90)
 - `--max-size` — flag images larger than this in MB (default 1024)
 - `--min-monthly-cost` — minimum estimated monthly waste to report in $ (default 0.10)
-- `--format` — output format: `text` (default), `json`, `sarif`, `spectrehub`
+- `--format json` — output as JSON (`spectre/v1` envelope)
+- `--format sarif` — SARIF v2.1.0 for CI integration
+- `--format spectrehub` — SpectreHub aggregator format
+- `--format text` — human-readable table (default)
 - `--output`, `-o` — write the report to a file instead of stdout
 - `--include-scan` — include ECR vulnerability scan data when available
 - `--no-progress` — suppress progress output to stderr
@@ -41,7 +44,7 @@ Audits GCP Artifact Registry repositories. Artifact Registry exposes no pull tim
 
 **Flags:** `--project` (required), `--locations`, plus the shared `--stale-days`, `--max-size`, `--min-monthly-cost`, `--format`, `--output`, `--no-progress`, `--timeout`, and `--exclude-tags` flags above.
 
-**JSON output** (`--format json`) is a `spectre/v1` envelope:
+**JSON output:**
 ```json
 {
   "$schema": "spectre/v1",
