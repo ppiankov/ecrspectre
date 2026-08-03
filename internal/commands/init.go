@@ -93,11 +93,18 @@ max_size_mb: 1024
 # Minimum monthly cost to report ($)
 min_monthly_cost: 0.10
 
-# Output format: text, json, sarif, or spectrehub
+# Output format: text, json, sarif, spectrehub, policy, or delete-script
 format: text
 
 # Scan timeout
 timeout: 10m
+
+# Retention: images matching these rules are always kept (used by --format policy
+# and --format delete-script). Uncomment and tune as needed.
+# retention:
+#   keep_latest_n: 30
+#   protect_tags: ["latest", "release"]
+#   min_age_days: 7
 
 # Resources to exclude from scanning
 # exclude:

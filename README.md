@@ -11,7 +11,8 @@
 - Checks pull timestamps, tag status, image size, and lifecycle policies
 - Estimates monthly storage cost per finding
 - Surfaces vulnerability scan data from ECR's built-in scanner
-- Outputs text, JSON, SARIF, and SpectreHub formats
+- Generates remediation plans: ECR lifecycle policies and dry-run delete scripts (read-only)
+- Outputs text, JSON, SARIF, SpectreHub, policy, and delete-script formats
 
 ## What it is NOT
 
