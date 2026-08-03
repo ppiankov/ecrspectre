@@ -224,10 +224,9 @@ func TestParseExcludeTagsEmpty(t *testing.T) {
 	}
 }
 
-// newAWSFlagsCmd builds an isolated *cobra.Command with the AWS scan flags
-// bound to the package globals, then parses args so Flags().Changed() reflects
-// exactly which flags the caller set explicitly. Binding to the globals resets
-// them to their defaults on each call, so tests do not leak flag state.
+// WO-7: builds an isolated *cobra.Command with the AWS scan flags bound to the
+// package globals, then parses args so Flags().Changed() reflects exactly which
+// flags the caller set explicitly (binding resets globals to defaults per call).
 func newAWSFlagsCmd(t *testing.T, args ...string) *cobra.Command {
 	t.Helper()
 	c := &cobra.Command{Use: "aws-test"}
@@ -242,6 +241,7 @@ func newAWSFlagsCmd(t *testing.T, args ...string) *cobra.Command {
 	return c
 }
 
+// WO-7: GCP counterpart to newAWSFlagsCmd.
 func newGCPFlagsCmd(t *testing.T, args ...string) *cobra.Command {
 	t.Helper()
 	c := &cobra.Command{Use: "gcp-test"}
@@ -258,8 +258,8 @@ func newGCPFlagsCmd(t *testing.T, args ...string) *cobra.Command {
 	return c
 }
 
+// WO-7: no explicit flags → config values apply (including wired timeout).
 func TestApplyAWSConfigDefaults(t *testing.T) {
-	// No explicit flags → config values apply, including wired timeout.
 	cmd := newAWSFlagsCmd(t)
 
 	cfg := config.Config{
@@ -289,10 +289,9 @@ func TestApplyAWSConfigDefaults(t *testing.T) {
 	}
 }
 
-// TestApplyAWSConfigDefaultsExplicitFlagWins is the regression for the
-// flag==default sentinel bug: an explicit flag whose value equals the default
-// must still beat config. Previously --stale-days 90 was indistinguishable
-// from unset, so config stale_days silently overrode the explicit 90.
+// WO-7: regression for the flag==default sentinel bug — an explicit flag whose
+// value equals the default must still beat config (previously --stale-days 90
+// was indistinguishable from unset, so config overrode the explicit 90).
 func TestApplyAWSConfigDefaultsExplicitFlagWins(t *testing.T) {
 	cmd := newAWSFlagsCmd(t, "--stale-days", "90", "--max-size", "1024", "--format", "text")
 
@@ -315,6 +314,7 @@ func TestApplyAWSConfigDefaultsExplicitFlagWins(t *testing.T) {
 	}
 }
 
+// WO-7: non-default explicit flags beat config.
 func TestApplyAWSConfigDefaultsNonDefaultFlagWins(t *testing.T) {
 	cmd := newAWSFlagsCmd(t, "--format", "sarif", "--stale-days", "30", "--max-size", "512", "--min-monthly-cost", "5.0")
 
@@ -341,6 +341,7 @@ func TestApplyAWSConfigDefaultsNonDefaultFlagWins(t *testing.T) {
 	}
 }
 
+// WO-7: no explicit flags → config values apply (including wired timeout + project).
 func TestApplyGCPConfigDefaults(t *testing.T) {
 	cmd := newGCPFlagsCmd(t)
 
@@ -375,8 +376,7 @@ func TestApplyGCPConfigDefaults(t *testing.T) {
 	}
 }
 
-// TestApplyGCPConfigDefaultsExplicitFlagWins: explicit project + stale-days
-// (even at the default value) beat config.
+// WO-7: explicit project + stale-days (even at the default value) beat config.
 func TestApplyGCPConfigDefaultsExplicitFlagWins(t *testing.T) {
 	cmd := newGCPFlagsCmd(t, "--stale-days", "90", "--project", "explicit-project")
 
@@ -395,6 +395,7 @@ func TestApplyGCPConfigDefaultsExplicitFlagWins(t *testing.T) {
 	}
 }
 
+// WO-7: non-default explicit flags beat config.
 func TestApplyGCPConfigDefaultsNonDefaultFlagWins(t *testing.T) {
 	cmd := newGCPFlagsCmd(t, "--format", "sarif", "--stale-days", "30", "--max-size", "512", "--min-monthly-cost", "5.0", "--project", "explicit-project")
 

@@ -59,8 +59,8 @@ type scanFlagRefs struct {
 	project        *string // nil for providers without a project flag
 }
 
-// applyConfigDefaults applies config values only for flags the user did NOT set
-// explicitly (WO-7 precedence; WO-8 hoist). project is applied only when non-nil.
+// WO-8: applies config values only for flags the user did NOT set explicitly
+// (WO-7 precedence logic, hoisted here so it lives once); project only when non-nil.
 func applyConfigDefaults(cmd *cobra.Command, cfg config.Config, r scanFlagRefs) {
 	f := cmd.Flags()
 	if !f.Changed("format") && cfg.Format != "" {
@@ -83,8 +83,8 @@ func applyConfigDefaults(cmd *cobra.Command, cfg config.Config, r scanFlagRefs) 
 	}
 }
 
-// buildExcludeIDs converts a config resource-ID exclude list into the set the
-// scanner consumes. WO-8: hoisted verbatim from runAWS/runGCP.
+// WO-8: converts a config resource-ID exclude list into the set the scanner
+// consumes; hoisted verbatim from runAWS/runGCP.
 func buildExcludeIDs(ids []string) map[string]bool {
 	out := make(map[string]bool, len(ids))
 	for _, id := range ids {
@@ -93,8 +93,8 @@ func buildExcludeIDs(ids []string) map[string]bool {
 	return out
 }
 
-// stderrProgressFn returns a progress callback that writes to stderr, or nil when
-// disabled. WO-8: hoisted verbatim from runAWS/runGCP.
+// WO-8: returns a progress callback that writes to stderr, or nil when disabled;
+// hoisted verbatim from runAWS/runGCP.
 func stderrProgressFn(disabled bool) func(registry.ScanProgress) {
 	if disabled {
 		return nil

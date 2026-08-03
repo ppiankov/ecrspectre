@@ -55,10 +55,9 @@ func init() {
 func runAWS(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 
-	// Load config and apply defaults. Explicit flags beat config values: an
-	// explicit --stale-days 90 must win over config stale_days even though 90
-	// is also the flag default, so precedence is decided via Flags().Changed().
-	// Config (including timeout) is resolved here so the context below uses it.
+	// WO-7: load config + apply defaults before context setup; explicit flags
+	// beat config via Flags().Changed() (was flag==default sentinel) and timeout
+	// resolves from config so the context below uses it.
 	cfg, err := config.Load(".")
 	if err != nil {
 		slog.Warn("Failed to load config file", "error", err)
@@ -95,7 +94,7 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	}
 	slog.Info("Scanning ECR", "region", resolvedRegion)
 
-	// Build scan config
+	// WO-8: build scan config; exclude-ID map hoisted to shared builder.
 	excludeIDs := buildExcludeIDs(cfg.Exclude.ResourceIDs)
 	excludeTags := parseExcludeTags(cfg.Exclude.Tags, awsFlags.excludeTags)
 
@@ -112,6 +111,7 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	// Run scanner
 	scanner := ecr.NewECRScanner(client.NewECRClient(), resolvedRegion, awsFlags.includeScan)
 
+	// WO-8: progress callback hoisted to shared helper.
 	progressFn := stderrProgressFn(awsFlags.noProgress)
 
 	result := scanner.Scan(ctx, scanCfg, progressFn)
@@ -150,8 +150,8 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	return reporter.Generate(data)
 }
 
-// applyAWSConfigDefaults applies config defaults for unset AWS flags. WO-8:
-// delegates to the shared applyConfigDefaults so the precedence logic lives once.
+// WO-8: applies config defaults for unset AWS flags; delegates to the shared
+// applyConfigDefaults so the precedence logic lives once.
 func applyAWSConfigDefaults(cmd *cobra.Command, cfg config.Config) {
 	applyConfigDefaults(cmd, cfg, scanFlagRefs{
 		format:         &awsFlags.format,

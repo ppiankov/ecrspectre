@@ -22,7 +22,7 @@ type ECRScanner struct {
 	now         time.Time // injectable for testing
 }
 
-// Compile-time assertion that ECRScanner satisfies registry.RegistryScanner (WO-11).
+// WO-11: compile-time assertion that ECRScanner satisfies registry.RegistryScanner.
 var _ registry.RegistryScanner = (*ECRScanner)(nil)
 
 // NewECRScanner creates a scanner for the given ECR client and region.
@@ -111,7 +111,7 @@ func (s *ECRScanner) scanRepository(ctx context.Context, cfg registry.ScanConfig
 		}
 	}
 
-	// All images stale = unused repo (WO-8: shared builder)
+	// WO-8: all images stale = unused repo, via shared builder.
 	if staleCount == len(images) && len(images) > 0 {
 		totalWaste := 0.0
 		for _, img := range images {
@@ -178,7 +178,7 @@ func (s *ECRScanner) analyzeImage(_ context.Context, cfg registry.ScanConfig, re
 		}
 	}
 
-	// Large image (WO-8: shared builder)
+	// WO-8: large image, via shared builder.
 	if cfg.MaxSizeBytes > 0 && sizeBytes > cfg.MaxSizeBytes {
 		findings = append(findings, registry.LargeImageFinding(imageID, resourceName, s.region, sizeBytes, sizeMB, cost, cfg.MaxSizeBytes))
 	}

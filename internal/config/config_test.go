@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// WO-7: loads all config keys (provider key removed from Config; no longer asserted).
 func TestLoadYAML(t *testing.T) {
 	dir := t.TempDir()
 	content := `regions:
@@ -79,6 +80,7 @@ func TestLoadYML(t *testing.T) {
 	}
 }
 
+// WO-7: missing config returns a zero-value Config, no error.
 func TestLoadNoFile(t *testing.T) {
 	cfg, err := Load(t.TempDir())
 	if err != nil {

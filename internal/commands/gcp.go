@@ -53,17 +53,18 @@ func init() {
 }
 
 func runGCP(cmd *cobra.Command, _ []string) error {
+	// WO-7: reorder — load config + apply defaults before the required-flag check
+	// (so config can supply project) and before context timeout setup; explicit
+	// flags beat config via Flags().Changed() and timeout resolves from config.
 	ctx := cmd.Context()
 
-	// Load config and apply defaults. Explicit flags beat config values via
-	// Flags().Changed(); project from config is resolved here so the required
-	// check below sees the config-supplied value.
 	cfg, err := config.Load(".")
 	if err != nil {
 		slog.Warn("Failed to load config file", "error", err)
 	}
 	applyGCPConfigDefaults(cmd, cfg)
 
+	// WO-7: project required-check now runs after config defaults so config can supply it.
 	if gcpFlags.project == "" {
 		return fmt.Errorf("--project is required for GCP scans (set --project or config \"project\")")
 	}
@@ -92,7 +93,7 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	}
 	defer func() { _ = client.Close() }()
 
-	// Build scan config
+	// WO-8: build scan config; exclude-ID map hoisted to shared builder.
 	excludeIDs := buildExcludeIDs(cfg.Exclude.ResourceIDs)
 	excludeTags := parseExcludeTags(cfg.Exclude.Tags, gcpFlags.excludeTags)
 
@@ -109,6 +110,7 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	// Run scanner
 	scanner := artifactregistry.NewARScanner(client, gcpFlags.project, locations)
 
+	// WO-8: progress callback hoisted to shared helper.
 	progressFn := stderrProgressFn(gcpFlags.noProgress)
 
 	result := scanner.Scan(ctx, scanCfg, progressFn)
@@ -147,8 +149,8 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	return reporter.Generate(data)
 }
 
-// applyGCPConfigDefaults applies config defaults for unset GCP flags. WO-8:
-// delegates to the shared applyConfigDefaults (project included via refs).
+// WO-8: applies config defaults for unset GCP flags; delegates to the shared
+// applyConfigDefaults (project included via refs).
 func applyGCPConfigDefaults(cmd *cobra.Command, cfg config.Config) {
 	applyConfigDefaults(cmd, cfg, scanFlagRefs{
 		format:         &gcpFlags.format,

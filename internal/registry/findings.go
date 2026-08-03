@@ -22,9 +22,8 @@ func LargeImageFinding(imageID, resourceName, region string, sizeBytes int64, si
 	}
 }
 
-// AllStaleRepoFinding builds the UNUSED_REPO finding emitted when every image in
-// a repository is stale. WO-8: hoisted from ecr and artifactregistry; the waste
-// sum is computed per provider (pull-time vs upload-time) and passed in.
+// WO-8: builds the UNUSED_REPO finding emitted when every image in a repository
+// is stale; hoisted from ecr and artifactregistry (waste sum is per-provider).
 func AllStaleRepoFinding(resourceID, region string, imageCount int, totalWaste float64) Finding {
 	return Finding{
 		ID:                    FindingUnusedRepo,
