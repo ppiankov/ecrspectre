@@ -1,10 +1,9 @@
 # ecrspectre
 
 [![CI](https://github.com/ppiankov/ecrspectre/actions/workflows/ci.yml/badge.svg)](https://github.com/ppiankov/ecrspectre/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ppiankov/ecrspectre)](https://goreportcard.com/report/github.com/ppiankov/ecrspectre)
 [![ANCC](https://img.shields.io/badge/ANCC-compliant-brightgreen)](https://ancc.dev)
 
-**ecrspectre** — Container registry waste auditor for ECR and Artifact Registry. Part of [SpectreHub](https://github.com/ppiankov/spectrehub).
+**ecrspectre** — Container registry waste auditor for ECR and Artifact Registry. Part of [SpectreHub](https://spectrehub.dev).
 
 ## What it is
 
@@ -63,7 +62,7 @@ ecrspectre aws --region us-east-1 --format json
 
 ## SpectreHub integration
 
-ecrspectre feeds container registry waste findings into [SpectreHub](https://github.com/ppiankov/spectrehub) for unified visibility across your infrastructure.
+ecrspectre feeds container registry waste findings into [SpectreHub](https://spectrehub.dev) for unified visibility across your infrastructure.
 
 ```sh
 spectrehub collect --tool ecrspectre
