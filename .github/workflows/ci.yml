@@ -8,8 +8,12 @@ on:
 
 jobs:
   build:
-    name: Build
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -22,10 +26,15 @@ jobs:
       - name: Get dependencies
         run: go mod download
 
+      - name: Build all packages
+        run: go build ./...
+
       - name: Build binary
+        if: matrix.os == 'ubuntu-latest'
         run: make build
 
       - name: Upload binary artifact
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ecrspectre-linux-amd64

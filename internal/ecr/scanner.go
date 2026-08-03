@@ -22,6 +22,9 @@ type ECRScanner struct {
 	now         time.Time // injectable for testing
 }
 
+// WO-11: compile-time assertion that ECRScanner satisfies registry.RegistryScanner.
+var _ registry.RegistryScanner = (*ECRScanner)(nil)
+
 // NewECRScanner creates a scanner for the given ECR client and region.
 func NewECRScanner(client ECRAPI, region string, includeScan bool) *ECRScanner {
 	return &ECRScanner{
@@ -108,24 +111,13 @@ func (s *ECRScanner) scanRepository(ctx context.Context, cfg registry.ScanConfig
 		}
 	}
 
-	// All images stale = unused repo
+	// WO-8: all images stale = unused repo, via shared builder.
 	if staleCount == len(images) && len(images) > 0 {
 		totalWaste := 0.0
 		for _, img := range images {
 			totalWaste += pricing.MonthlyStorageCost("ecr", s.region, derefInt64(img.ImageSizeInBytes))
 		}
-		result.Findings = append(result.Findings, registry.Finding{
-			ID:                    registry.FindingUnusedRepo,
-			Severity:              registry.SeverityLow,
-			ResourceType:          registry.ResourceRepository,
-			ResourceID:            repoName,
-			Region:                s.region,
-			Message:               fmt.Sprintf("All %d images are stale", len(images)),
-			EstimatedMonthlyWaste: totalWaste,
-			Metadata: map[string]any{
-				"image_count": len(images),
-			},
-		})
+		result.Findings = append(result.Findings, registry.AllStaleRepoFinding(repoName, s.region, len(images), totalWaste))
 	}
 }
 
@@ -186,22 +178,9 @@ func (s *ECRScanner) analyzeImage(_ context.Context, cfg registry.ScanConfig, re
 		}
 	}
 
-	// Large image
+	// WO-8: large image, via shared builder.
 	if cfg.MaxSizeBytes > 0 && sizeBytes > cfg.MaxSizeBytes {
-		findings = append(findings, registry.Finding{
-			ID:                    registry.FindingLargeImage,
-			Severity:              registry.SeverityMedium,
-			ResourceType:          registry.ResourceImage,
-			ResourceID:            imageID,
-			ResourceName:          resourceName,
-			Region:                s.region,
-			Message:               fmt.Sprintf("Image is %.0f MB (threshold: %d MB)", sizeMB, cfg.MaxSizeBytes/(1024*1024)),
-			EstimatedMonthlyWaste: cost,
-			Metadata: map[string]any{
-				"size_bytes":      sizeBytes,
-				"threshold_bytes": cfg.MaxSizeBytes,
-			},
-		})
+		findings = append(findings, registry.LargeImageFinding(imageID, resourceName, s.region, sizeBytes, sizeMB, cost, cfg.MaxSizeBytes))
 	}
 
 	// Multi-arch bloat: image manifest list with multiple platforms

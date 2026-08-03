@@ -54,18 +54,21 @@ func init() {
 
 func runAWS(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
+
+	// WO-7: load config + apply defaults before context setup; explicit flags
+	// beat config via Flags().Changed() (was flag==default sentinel) and timeout
+	// resolves from config so the context below uses it.
+	cfg, err := config.Load(".")
+	if err != nil {
+		slog.Warn("Failed to load config file", "error", err)
+	}
+	applyAWSConfigDefaults(cmd, cfg)
+
 	if awsFlags.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, awsFlags.timeout)
 		defer cancel()
 	}
-
-	// Load config and apply defaults
-	cfg, err := config.Load(".")
-	if err != nil {
-		slog.Warn("Failed to load config file", "error", err)
-	}
-	applyAWSConfigDefaults(cfg)
 
 	// Resolve profile
 	profile := awsFlags.profile
@@ -91,11 +94,8 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	}
 	slog.Info("Scanning ECR", "region", resolvedRegion)
 
-	// Build scan config
-	excludeIDs := make(map[string]bool, len(cfg.Exclude.ResourceIDs))
-	for _, id := range cfg.Exclude.ResourceIDs {
-		excludeIDs[id] = true
-	}
+	// WO-8: build scan config; exclude-ID map hoisted to shared builder.
+	excludeIDs := buildExcludeIDs(cfg.Exclude.ResourceIDs)
 	excludeTags := parseExcludeTags(cfg.Exclude.Tags, awsFlags.excludeTags)
 
 	scanCfg := registry.ScanConfig{
@@ -111,12 +111,8 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	// Run scanner
 	scanner := ecr.NewECRScanner(client.NewECRClient(), resolvedRegion, awsFlags.includeScan)
 
-	var progressFn func(registry.ScanProgress)
-	if !awsFlags.noProgress {
-		progressFn = func(p registry.ScanProgress) {
-			fmt.Fprintf(os.Stderr, "[%s] %s\n", p.Region, p.Message)
-		}
-	}
+	// WO-8: progress callback hoisted to shared helper.
+	progressFn := stderrProgressFn(awsFlags.noProgress)
 
 	result := scanner.Scan(ctx, scanCfg, progressFn)
 
@@ -154,19 +150,16 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 	return reporter.Generate(data)
 }
 
-func applyAWSConfigDefaults(cfg config.Config) {
-	if awsFlags.format == "text" && cfg.Format != "" {
-		awsFlags.format = cfg.Format
-	}
-	if awsFlags.staleDays == 90 && cfg.StaleDays > 0 {
-		awsFlags.staleDays = cfg.StaleDays
-	}
-	if awsFlags.maxSizeMB == 1024 && cfg.MaxSizeMB > 0 {
-		awsFlags.maxSizeMB = cfg.MaxSizeMB
-	}
-	if awsFlags.minMonthlyCost == 0.10 && cfg.MinMonthlyCost > 0 {
-		awsFlags.minMonthlyCost = cfg.MinMonthlyCost
-	}
+// WO-8: applies config defaults for unset AWS flags; delegates to the shared
+// applyConfigDefaults so the precedence logic lives once.
+func applyAWSConfigDefaults(cmd *cobra.Command, cfg config.Config) {
+	applyConfigDefaults(cmd, cfg, scanFlagRefs{
+		format:         &awsFlags.format,
+		staleDays:      &awsFlags.staleDays,
+		maxSizeMB:      &awsFlags.maxSizeMB,
+		minMonthlyCost: &awsFlags.minMonthlyCost,
+		timeout:        &awsFlags.timeout,
+	})
 }
 
 func selectReporter(format, outputFile string) (report.Reporter, error) {

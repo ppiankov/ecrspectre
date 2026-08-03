@@ -18,6 +18,9 @@ type ARScanner struct {
 	now       time.Time // injectable for testing
 }
 
+// WO-11: compile-time assertion that ARScanner satisfies registry.RegistryScanner.
+var _ registry.RegistryScanner = (*ARScanner)(nil)
+
 // NewARScanner creates a scanner for the given Artifact Registry client.
 func NewARScanner(client ARAPI, project string, locations []string) *ARScanner {
 	return &ARScanner{
@@ -90,24 +93,13 @@ func (s *ARScanner) scanRepository(ctx context.Context, cfg registry.ScanConfig,
 		}
 	}
 
-	// All images stale = unused repo
+	// WO-8: all images stale = unused repo, via shared builder.
 	if staleCount == len(images) && len(images) > 0 {
 		totalWaste := 0.0
 		for _, img := range images {
 			totalWaste += pricing.MonthlyStorageCost("artifactregistry", repo.Location, img.SizeBytes)
 		}
-		result.Findings = append(result.Findings, registry.Finding{
-			ID:                    registry.FindingUnusedRepo,
-			Severity:              registry.SeverityLow,
-			ResourceType:          registry.ResourceRepository,
-			ResourceID:            repo.RepoID,
-			Region:                repo.Location,
-			Message:               fmt.Sprintf("All %d images are stale", len(images)),
-			EstimatedMonthlyWaste: totalWaste,
-			Metadata: map[string]any{
-				"image_count": len(images),
-			},
-		})
+		result.Findings = append(result.Findings, registry.AllStaleRepoFinding(repo.RepoID, repo.Location, len(images), totalWaste))
 	}
 }
 
@@ -170,22 +162,9 @@ func (s *ARScanner) analyzeImage(cfg registry.ScanConfig, repo Repository, img D
 		}
 	}
 
-	// Large image
+	// WO-8: large image, via shared builder.
 	if cfg.MaxSizeBytes > 0 && sizeBytes > cfg.MaxSizeBytes {
-		findings = append(findings, registry.Finding{
-			ID:                    registry.FindingLargeImage,
-			Severity:              registry.SeverityMedium,
-			ResourceType:          registry.ResourceImage,
-			ResourceID:            imageID,
-			ResourceName:          resourceName,
-			Region:                repo.Location,
-			Message:               fmt.Sprintf("Image is %.0f MB (threshold: %d MB)", sizeMB, cfg.MaxSizeBytes/(1024*1024)),
-			EstimatedMonthlyWaste: cost,
-			Metadata: map[string]any{
-				"size_bytes":      sizeBytes,
-				"threshold_bytes": cfg.MaxSizeBytes,
-			},
-		})
+		findings = append(findings, registry.LargeImageFinding(imageID, resourceName, repo.Location, sizeBytes, sizeMB, cost, cfg.MaxSizeBytes))
 	}
 
 	// Multi-arch bloat

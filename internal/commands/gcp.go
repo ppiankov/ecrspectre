@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/ppiankov/ecrspectre/internal/analyzer"
@@ -54,23 +53,27 @@ func init() {
 }
 
 func runGCP(cmd *cobra.Command, _ []string) error {
+	// WO-7: reorder — load config + apply defaults before the required-flag check
+	// (so config can supply project) and before context timeout setup; explicit
+	// flags beat config via Flags().Changed() and timeout resolves from config.
+	ctx := cmd.Context()
+
+	cfg, err := config.Load(".")
+	if err != nil {
+		slog.Warn("Failed to load config file", "error", err)
+	}
+	applyGCPConfigDefaults(cmd, cfg)
+
+	// WO-7: project required-check now runs after config defaults so config can supply it.
 	if gcpFlags.project == "" {
-		return fmt.Errorf("--project is required for GCP scans")
+		return fmt.Errorf("--project is required for GCP scans (set --project or config \"project\")")
 	}
 
-	ctx := cmd.Context()
 	if gcpFlags.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, gcpFlags.timeout)
 		defer cancel()
 	}
-
-	// Load config and apply defaults
-	cfg, err := config.Load(".")
-	if err != nil {
-		slog.Warn("Failed to load config file", "error", err)
-	}
-	applyGCPConfigDefaults(cfg)
 
 	// Resolve locations
 	locations := gcpFlags.locations
@@ -90,11 +93,8 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	}
 	defer func() { _ = client.Close() }()
 
-	// Build scan config
-	excludeIDs := make(map[string]bool, len(cfg.Exclude.ResourceIDs))
-	for _, id := range cfg.Exclude.ResourceIDs {
-		excludeIDs[id] = true
-	}
+	// WO-8: build scan config; exclude-ID map hoisted to shared builder.
+	excludeIDs := buildExcludeIDs(cfg.Exclude.ResourceIDs)
 	excludeTags := parseExcludeTags(cfg.Exclude.Tags, gcpFlags.excludeTags)
 
 	scanCfg := registry.ScanConfig{
@@ -110,12 +110,8 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	// Run scanner
 	scanner := artifactregistry.NewARScanner(client, gcpFlags.project, locations)
 
-	var progressFn func(registry.ScanProgress)
-	if !gcpFlags.noProgress {
-		progressFn = func(p registry.ScanProgress) {
-			fmt.Fprintf(os.Stderr, "[%s] %s\n", p.Region, p.Message)
-		}
-	}
+	// WO-8: progress callback hoisted to shared helper.
+	progressFn := stderrProgressFn(gcpFlags.noProgress)
 
 	result := scanner.Scan(ctx, scanCfg, progressFn)
 
@@ -153,20 +149,15 @@ func runGCP(cmd *cobra.Command, _ []string) error {
 	return reporter.Generate(data)
 }
 
-func applyGCPConfigDefaults(cfg config.Config) {
-	if gcpFlags.format == "text" && cfg.Format != "" {
-		gcpFlags.format = cfg.Format
-	}
-	if gcpFlags.staleDays == 90 && cfg.StaleDays > 0 {
-		gcpFlags.staleDays = cfg.StaleDays
-	}
-	if gcpFlags.maxSizeMB == 1024 && cfg.MaxSizeMB > 0 {
-		gcpFlags.maxSizeMB = cfg.MaxSizeMB
-	}
-	if gcpFlags.minMonthlyCost == 0.10 && cfg.MinMonthlyCost > 0 {
-		gcpFlags.minMonthlyCost = cfg.MinMonthlyCost
-	}
-	if gcpFlags.project == "" && cfg.Project != "" {
-		gcpFlags.project = cfg.Project
-	}
+// WO-8: applies config defaults for unset GCP flags; delegates to the shared
+// applyConfigDefaults (project included via refs).
+func applyGCPConfigDefaults(cmd *cobra.Command, cfg config.Config) {
+	applyConfigDefaults(cmd, cfg, scanFlagRefs{
+		format:         &gcpFlags.format,
+		staleDays:      &gcpFlags.staleDays,
+		maxSizeMB:      &gcpFlags.maxSizeMB,
+		minMonthlyCost: &gcpFlags.minMonthlyCost,
+		timeout:        &gcpFlags.timeout,
+		project:        &gcpFlags.project,
+	})
 }

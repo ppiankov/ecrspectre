@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ppiankov/ecrspectre/internal/config"
+	"github.com/spf13/cobra"
 )
 
 func TestExecuteVersion(t *testing.T) {
@@ -222,21 +224,53 @@ func TestParseExcludeTagsEmpty(t *testing.T) {
 	}
 }
 
+// WO-7: builds an isolated *cobra.Command with the AWS scan flags bound to the
+// package globals, then parses args so Flags().Changed() reflects exactly which
+// flags the caller set explicitly (binding resets globals to defaults per call).
+func newAWSFlagsCmd(t *testing.T, args ...string) *cobra.Command {
+	t.Helper()
+	c := &cobra.Command{Use: "aws-test"}
+	c.Flags().StringVar(&awsFlags.format, "format", "text", "")
+	c.Flags().IntVar(&awsFlags.staleDays, "stale-days", 90, "")
+	c.Flags().IntVar(&awsFlags.maxSizeMB, "max-size", 1024, "")
+	c.Flags().Float64Var(&awsFlags.minMonthlyCost, "min-monthly-cost", 0.10, "")
+	c.Flags().DurationVar(&awsFlags.timeout, "timeout", 10*time.Minute, "")
+	if err := c.ParseFlags(args); err != nil {
+		t.Fatalf("ParseFlags(%v): %v", args, err)
+	}
+	return c
+}
+
+// WO-7: GCP counterpart to newAWSFlagsCmd.
+func newGCPFlagsCmd(t *testing.T, args ...string) *cobra.Command {
+	t.Helper()
+	c := &cobra.Command{Use: "gcp-test"}
+	c.Flags().StringVar(&gcpFlags.project, "project", "", "")
+	c.Flags().StringSliceVar(&gcpFlags.locations, "locations", nil, "")
+	c.Flags().IntVar(&gcpFlags.staleDays, "stale-days", 90, "")
+	c.Flags().IntVar(&gcpFlags.maxSizeMB, "max-size", 1024, "")
+	c.Flags().Float64Var(&gcpFlags.minMonthlyCost, "min-monthly-cost", 0.10, "")
+	c.Flags().StringVar(&gcpFlags.format, "format", "text", "")
+	c.Flags().DurationVar(&gcpFlags.timeout, "timeout", 10*time.Minute, "")
+	if err := c.ParseFlags(args); err != nil {
+		t.Fatalf("ParseFlags(%v): %v", args, err)
+	}
+	return c
+}
+
+// WO-7: no explicit flags → config values apply (including wired timeout).
 func TestApplyAWSConfigDefaults(t *testing.T) {
-	// Reset flags to defaults
-	awsFlags.format = "text"
-	awsFlags.staleDays = 90
-	awsFlags.maxSizeMB = 1024
-	awsFlags.minMonthlyCost = 0.10
+	cmd := newAWSFlagsCmd(t)
 
 	cfg := config.Config{
 		Format:         "json",
 		StaleDays:      180,
 		MaxSizeMB:      2048,
 		MinMonthlyCost: 1.0,
+		Timeout:        "5m",
 	}
 
-	applyAWSConfigDefaults(cfg)
+	applyAWSConfigDefaults(cmd, cfg)
 
 	if awsFlags.format != "json" {
 		t.Errorf("format = %q, want json", awsFlags.format)
@@ -250,20 +284,39 @@ func TestApplyAWSConfigDefaults(t *testing.T) {
 	if awsFlags.minMonthlyCost != 1.0 {
 		t.Errorf("minMonthlyCost = %f, want 1.0", awsFlags.minMonthlyCost)
 	}
-
-	// Reset for other tests
-	awsFlags.format = "text"
-	awsFlags.staleDays = 90
-	awsFlags.maxSizeMB = 1024
-	awsFlags.minMonthlyCost = 0.10
+	if awsFlags.timeout != 5*time.Minute {
+		t.Errorf("timeout = %v, want 5m", awsFlags.timeout)
+	}
 }
 
-func TestApplyAWSConfigDefaultsNoOverride(t *testing.T) {
-	// Set non-default values (as if user passed flags)
-	awsFlags.format = "sarif"
-	awsFlags.staleDays = 30
-	awsFlags.maxSizeMB = 512
-	awsFlags.minMonthlyCost = 5.0
+// WO-7: regression for the flag==default sentinel bug — an explicit flag whose
+// value equals the default must still beat config (previously --stale-days 90
+// was indistinguishable from unset, so config overrode the explicit 90).
+func TestApplyAWSConfigDefaultsExplicitFlagWins(t *testing.T) {
+	cmd := newAWSFlagsCmd(t, "--stale-days", "90", "--max-size", "1024", "--format", "text")
+
+	cfg := config.Config{
+		Format:    "sarif",
+		StaleDays: 30,
+		MaxSizeMB: 512,
+	}
+
+	applyAWSConfigDefaults(cmd, cfg)
+
+	if awsFlags.staleDays != 90 {
+		t.Errorf("staleDays = %d, want 90 (explicit flag must beat config 30)", awsFlags.staleDays)
+	}
+	if awsFlags.maxSizeMB != 1024 {
+		t.Errorf("maxSizeMB = %d, want 1024 (explicit flag must beat config 512)", awsFlags.maxSizeMB)
+	}
+	if awsFlags.format != "text" {
+		t.Errorf("format = %q, want text (explicit flag must beat config sarif)", awsFlags.format)
+	}
+}
+
+// WO-7: non-default explicit flags beat config.
+func TestApplyAWSConfigDefaultsNonDefaultFlagWins(t *testing.T) {
+	cmd := newAWSFlagsCmd(t, "--format", "sarif", "--stale-days", "30", "--max-size", "512", "--min-monthly-cost", "5.0")
 
 	cfg := config.Config{
 		Format:         "json",
@@ -272,29 +325,25 @@ func TestApplyAWSConfigDefaultsNoOverride(t *testing.T) {
 		MinMonthlyCost: 1.0,
 	}
 
-	applyAWSConfigDefaults(cfg)
+	applyAWSConfigDefaults(cmd, cfg)
 
-	// Non-default flag values should not be overridden
 	if awsFlags.format != "sarif" {
-		t.Errorf("format = %q, want sarif (flag should win)", awsFlags.format)
+		t.Errorf("format = %q, want sarif", awsFlags.format)
 	}
 	if awsFlags.staleDays != 30 {
-		t.Errorf("staleDays = %d, want 30 (flag should win)", awsFlags.staleDays)
+		t.Errorf("staleDays = %d, want 30", awsFlags.staleDays)
 	}
-
-	// Reset for other tests
-	awsFlags.format = "text"
-	awsFlags.staleDays = 90
-	awsFlags.maxSizeMB = 1024
-	awsFlags.minMonthlyCost = 0.10
+	if awsFlags.maxSizeMB != 512 {
+		t.Errorf("maxSizeMB = %d, want 512", awsFlags.maxSizeMB)
+	}
+	if awsFlags.minMonthlyCost != 5.0 {
+		t.Errorf("minMonthlyCost = %f, want 5.0", awsFlags.minMonthlyCost)
+	}
 }
 
+// WO-7: no explicit flags → config values apply (including wired timeout + project).
 func TestApplyGCPConfigDefaults(t *testing.T) {
-	gcpFlags.format = "text"
-	gcpFlags.staleDays = 90
-	gcpFlags.maxSizeMB = 1024
-	gcpFlags.minMonthlyCost = 0.10
-	gcpFlags.project = ""
+	cmd := newGCPFlagsCmd(t)
 
 	cfg := config.Config{
 		Format:         "json",
@@ -302,9 +351,10 @@ func TestApplyGCPConfigDefaults(t *testing.T) {
 		MaxSizeMB:      2048,
 		MinMonthlyCost: 1.0,
 		Project:        "my-gcp-project",
+		Timeout:        "5m",
 	}
 
-	applyGCPConfigDefaults(cfg)
+	applyGCPConfigDefaults(cmd, cfg)
 
 	if gcpFlags.format != "json" {
 		t.Errorf("format = %q, want json", gcpFlags.format)
@@ -321,21 +371,33 @@ func TestApplyGCPConfigDefaults(t *testing.T) {
 	if gcpFlags.project != "my-gcp-project" {
 		t.Errorf("project = %q, want my-gcp-project", gcpFlags.project)
 	}
-
-	// Reset
-	gcpFlags.format = "text"
-	gcpFlags.staleDays = 90
-	gcpFlags.maxSizeMB = 1024
-	gcpFlags.minMonthlyCost = 0.10
-	gcpFlags.project = ""
+	if gcpFlags.timeout != 5*time.Minute {
+		t.Errorf("timeout = %v, want 5m", gcpFlags.timeout)
+	}
 }
 
-func TestApplyGCPConfigDefaultsNoOverride(t *testing.T) {
-	gcpFlags.format = "sarif"
-	gcpFlags.staleDays = 30
-	gcpFlags.maxSizeMB = 512
-	gcpFlags.minMonthlyCost = 5.0
-	gcpFlags.project = "explicit-project"
+// WO-7: explicit project + stale-days (even at the default value) beat config.
+func TestApplyGCPConfigDefaultsExplicitFlagWins(t *testing.T) {
+	cmd := newGCPFlagsCmd(t, "--stale-days", "90", "--project", "explicit-project")
+
+	cfg := config.Config{
+		StaleDays: 30,
+		Project:   "config-project",
+	}
+
+	applyGCPConfigDefaults(cmd, cfg)
+
+	if gcpFlags.staleDays != 90 {
+		t.Errorf("staleDays = %d, want 90 (explicit flag must beat config 30)", gcpFlags.staleDays)
+	}
+	if gcpFlags.project != "explicit-project" {
+		t.Errorf("project = %q, want explicit-project (explicit flag must beat config)", gcpFlags.project)
+	}
+}
+
+// WO-7: non-default explicit flags beat config.
+func TestApplyGCPConfigDefaultsNonDefaultFlagWins(t *testing.T) {
+	cmd := newGCPFlagsCmd(t, "--format", "sarif", "--stale-days", "30", "--max-size", "512", "--min-monthly-cost", "5.0", "--project", "explicit-project")
 
 	cfg := config.Config{
 		Format:         "json",
@@ -345,27 +407,20 @@ func TestApplyGCPConfigDefaultsNoOverride(t *testing.T) {
 		Project:        "config-project",
 	}
 
-	applyGCPConfigDefaults(cfg)
+	applyGCPConfigDefaults(cmd, cfg)
 
 	if gcpFlags.format != "sarif" {
-		t.Errorf("format = %q, want sarif (flag should win)", gcpFlags.format)
+		t.Errorf("format = %q, want sarif", gcpFlags.format)
 	}
 	if gcpFlags.staleDays != 30 {
-		t.Errorf("staleDays = %d, want 30 (flag should win)", gcpFlags.staleDays)
+		t.Errorf("staleDays = %d, want 30", gcpFlags.staleDays)
 	}
 	if gcpFlags.maxSizeMB != 512 {
-		t.Errorf("maxSizeMB = %d, want 512 (flag should win)", gcpFlags.maxSizeMB)
+		t.Errorf("maxSizeMB = %d, want 512", gcpFlags.maxSizeMB)
 	}
 	if gcpFlags.project != "explicit-project" {
-		t.Errorf("project = %q, want explicit-project (flag should win)", gcpFlags.project)
+		t.Errorf("project = %q, want explicit-project", gcpFlags.project)
 	}
-
-	// Reset
-	gcpFlags.format = "text"
-	gcpFlags.staleDays = 90
-	gcpFlags.maxSizeMB = 1024
-	gcpFlags.minMonthlyCost = 0.10
-	gcpFlags.project = ""
 }
 
 func TestEnhanceErrorGCPCredentials(t *testing.T) {
