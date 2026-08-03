@@ -13,21 +13,34 @@ import (
 // Provider is intentionally absent (WO-7): the cloud provider is chosen by the
 // `aws`/`gcp` subcommand, so a config-level provider key would be ambiguous.
 type Config struct {
-	Regions        []string `yaml:"regions"`
-	Profile        string   `yaml:"profile"`
-	Project        string   `yaml:"project"`
-	StaleDays      int      `yaml:"stale_days"`
-	MaxSizeMB      int      `yaml:"max_size_mb"`
-	MinMonthlyCost float64  `yaml:"min_monthly_cost"`
-	Format         string   `yaml:"format"`
-	Timeout        string   `yaml:"timeout"`
-	Exclude        Exclude  `yaml:"exclude"`
+	Regions        []string  `yaml:"regions"`
+	Profile        string    `yaml:"profile"`
+	Project        string    `yaml:"project"`
+	StaleDays      int       `yaml:"stale_days"`
+	MaxSizeMB      int       `yaml:"max_size_mb"`
+	MinMonthlyCost float64   `yaml:"min_monthly_cost"`
+	Format         string    `yaml:"format"`
+	Timeout        string    `yaml:"timeout"`
+	Exclude        Exclude   `yaml:"exclude"`
+	Retention      Retention `yaml:"retention"`
 }
 
 // Exclude defines resources to skip during scanning.
 type Exclude struct {
 	ResourceIDs []string `yaml:"resource_ids"`
 	Tags        []string `yaml:"tags"`
+}
+
+// Retention configures which images to keep regardless of waste findings.
+// Consumed by the retention engine (internal/retention) via the lifecycle-policy
+// generator and the finding classifier (WO-13).
+type Retention struct {
+	KeepLatestN         int      `yaml:"keep_latest_n"`
+	KeepLatestNPerMajor bool     `yaml:"keep_latest_n_per_major"`
+	KeepLastPerBranch   bool     `yaml:"keep_last_per_branch"`
+	BranchPattern       string   `yaml:"branch_pattern"`
+	ProtectTags         []string `yaml:"protect_tags"`
+	MinAgeDays          int      `yaml:"min_age_days"`
 }
 
 // TimeoutDuration parses the timeout string as a duration.
