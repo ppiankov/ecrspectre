@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-03
+
 ### Added
 - Windows CI build leg and Windows quick-start documentation
 - Local verify gate (`.verify`, `make verify`) running vet, lint, and race tests
@@ -14,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Explicit CLI flags now take precedence over config via `Flags().Changed()`; the `timeout` config key is now wired through to the scan
 - Duplicated scanner finding-builders and command helpers hoisted into shared packages
+- SpectreHub references now link to https://spectrehub.dev
+
+### Removed
+- Dead Go Report Card badge from the README
 
 ### Fixed
 - `RegistryScanner` interface signature aligned with its implementations
