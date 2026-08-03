@@ -1,8 +1,7 @@
-// Package retention classifies container images into keep vs delete-candidate
-// using configurable rules: protected tags, keep-latest-N (optionally per semver
-// major), keep-last-per-branch, and minimum age. It is pure and deterministic —
-// no cloud calls — so it can be unit-tested and reused by both the finding
-// classifier and the lifecycle-policy generator (WO-13).
+// WO-13: pure retention engine — classifies images into keep vs delete-candidate
+// using configurable rules (protected tags, keep-latest-N optionally per semver
+// major, keep-last-per-branch, minimum age); no cloud calls; consumed by the
+// lifecycle-policy generator and the finding classifier.
 package retention
 
 import (
@@ -12,50 +11,48 @@ import (
 	"time"
 )
 
-// Decision is the retention verdict for a single image.
+// WO-13: Decision is the retention verdict for a single image.
 type Decision string
 
 const (
-	// Keep means the image must be retained regardless of waste findings.
+	// WO-13: Keep means the image must be retained regardless of waste findings.
 	Keep Decision = "keep"
-	// Candidate means the image is eligible for cleanup (subject to the caller's policy).
+	// WO-13: Candidate means the image is eligible for cleanup (subject to the caller's policy).
 	Candidate Decision = "candidate"
 )
 
-// Rules configures the retention engine. All fields optional; ProtectTags
-// defaults to ^latest$ and ^release(-.*)?$ when empty.
+// WO-13: Rules configures the retention engine; ProtectTags defaults when empty.
 type Rules struct {
-	KeepLatestN         int      // keep the N most-recent images (per repo; per major if KeepLatestNPerMajor)
-	KeepLatestNPerMajor bool     // apply KeepLatestN within each semver major version
-	KeepLastPerBranch   bool     // keep the most-recent image per branch tag (matched by BranchPattern)
-	BranchPattern       string   // regex matching branch tags; required when KeepLastPerBranch is true
-	ProtectTags         []string // regexes; any image with a matching tag is always Keep
-	MinAgeDays          int      // images younger than this many days are always Keep
+	KeepLatestN         int
+	KeepLatestNPerMajor bool
+	KeepLastPerBranch   bool
+	BranchPattern       string
+	ProtectTags         []string
+	MinAgeDays          int
 }
 
-// Image is the engine's input for one image.
+// WO-13: Image is the engine's input for one image.
 type Image struct {
 	Tags     []string
-	PushedAt time.Time // image push/creation time
+	PushedAt time.Time
 }
 
-// Verdict is the engine's output for one image, preserving input order.
+// WO-13: Verdict is the engine's output for one image, preserving input order.
 type Verdict struct {
 	Tags     []string
 	Decision Decision
 	Reason   string
 }
 
-// DefaultProtectTags returns the default protected-tag regexes.
+// WO-13: DefaultProtectTags returns the default protected-tag regexes.
 func DefaultProtectTags() []string {
 	return []string{`^latest$`, `^release(-.*)?$`}
 }
 
-// semverMajor matches a leading optional "v" followed by the major digits.
+// WO-13: semverMajor matches a leading optional "v" followed by the major digits.
 var semverMajor = regexp.MustCompile(`^v?(\d+)`)
 
-// majorOf returns the semver major ("1", "2", ...) of the first version-shaped
-// tag, or "" if no tag is version-shaped.
+// WO-13: majorOf returns the semver major of the first version-shaped tag, or "".
 func majorOf(tags []string) string {
 	for _, t := range tags {
 		if m := semverMajor.FindStringSubmatch(t); len(m) == 2 && m[1] != "" {
@@ -65,6 +62,7 @@ func majorOf(tags []string) string {
 	return ""
 }
 
+// WO-13: matchesAny reports whether any tag matches any regex.
 func matchesAny(tags []string, res []*regexp.Regexp) bool {
 	for _, t := range tags {
 		for _, re := range res {
@@ -76,6 +74,7 @@ func matchesAny(tags []string, res []*regexp.Regexp) bool {
 	return false
 }
 
+// WO-13: compileAll compiles a set of regex patterns, erroring on any invalid one.
 func compileAll(patterns []string) ([]*regexp.Regexp, error) {
 	var out []*regexp.Regexp
 	for _, p := range patterns {
@@ -88,11 +87,9 @@ func compileAll(patterns []string) ([]*regexp.Regexp, error) {
 	return out, nil
 }
 
-// Classify returns one Verdict per input image (same index/order). An image is
-// Keep if any rule protects it; otherwise Candidate. Rule precedence is
-// protect-tags, then min-age, then keep-latest-N, then keep-last-per-branch;
-// the first matching rule wins and an image already kept is never downgraded.
-// now is injected so tests are deterministic.
+// WO-13: Classify returns one Verdict per input image (preserving order); an image
+// is Keep if any rule protects it, else Candidate. Precedence is protect-tags,
+// min-age, keep-latest-N, keep-last-per-branch; first match wins, never downgraded.
 func Classify(images []Image, rules Rules, now time.Time) ([]Verdict, error) {
 	if len(rules.ProtectTags) == 0 {
 		rules.ProtectTags = DefaultProtectTags()
@@ -112,7 +109,7 @@ func Classify(images []Image, rules Rules, now time.Time) ([]Verdict, error) {
 
 	v := make([]Verdict, len(images))
 	markKeep := func(i int, reason string) {
-		if v[i].Decision != Keep { // first matching rule wins
+		if v[i].Decision != Keep {
 			v[i].Decision = Keep
 			v[i].Reason = reason
 		}
@@ -140,8 +137,7 @@ func Classify(images []Image, rules Rules, now time.Time) ([]Verdict, error) {
 	return v, nil
 }
 
-// keepLatestN marks the N most-recent images Keep, optionally within each major.
-// Images already kept by an earlier rule still occupy a slot in the top N.
+// WO-13: keepLatestN marks the N most-recent images Keep, optionally per major.
 func keepLatestN(images []Image, rules Rules, markKeep func(int, string)) {
 	if rules.KeepLatestNPerMajor {
 		groups := map[string][]int{}
@@ -162,7 +158,7 @@ func keepLatestN(images []Image, rules Rules, markKeep func(int, string)) {
 	keepTopN(idxs, images, rules.KeepLatestN, markKeep, fmt.Sprintf("within latest %d", rules.KeepLatestN))
 }
 
-// keepTopN sorts idxs by PushedAt descending (stable) and keeps the first n.
+// WO-13: keepTopN sorts idxs by PushedAt desc (stable) and keeps the first n.
 func keepTopN(idxs []int, images []Image, n int, markKeep func(int, string), reason string) {
 	sort.SliceStable(idxs, func(a, b int) bool {
 		return images[idxs[a]].PushedAt.After(images[idxs[b]].PushedAt)
@@ -175,9 +171,9 @@ func keepTopN(idxs []int, images []Image, n int, markKeep func(int, string), rea
 	}
 }
 
-// keepLastPerBranch keeps the most-recent image carrying each branch tag.
+// WO-13: keepLastPerBranch keeps the most-recent image carrying each branch tag.
 func keepLastPerBranch(images []Image, branchRE *regexp.Regexp, markKeep func(int, string)) {
-	best := map[string]int{} // branch tag -> index of the most-recent image with it
+	best := map[string]int{}
 	for i, img := range images {
 		for _, t := range img.Tags {
 			if !branchRE.MatchString(t) {
