@@ -56,7 +56,26 @@ func (r *PolicyReporter) Generate(data Data) error {
 			w.printf("#   aws ecr put-lifecycle-policy --repository %s --policy-text file://ecrspectre-policy.json\n", repo)
 		}
 	}
+	writeWarnings(w, data.Errors)
 	return w.err
+}
+
+// writeWarnings appends a capped warnings section so a partial/throttled scan is
+// visible — without it, an incomplete policy or delete-script looks complete.
+func writeWarnings(w *errWriter, errors []string) {
+	if len(errors) == 0 {
+		return
+	}
+	w.println("")
+	w.printf("# Warnings (%d): scan encountered errors — this output may be incomplete.\n", len(errors))
+	const maxWarn = 20
+	for i, e := range errors {
+		if i >= maxWarn {
+			w.printf("#   ... and %d more (re-run with --format text for the full list)\n", len(errors)-maxWarn)
+			break
+		}
+		w.printf("#   - %s\n", e)
+	}
 }
 
 // distinctRepos returns the sorted, de-duplicated repository names from image findings.

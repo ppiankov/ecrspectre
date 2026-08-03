@@ -45,3 +45,22 @@ func TestPolicyReporterNoFindings(t *testing.T) {
 		t.Errorf("expected no-findings note, got:\n%s", buf.String())
 	}
 }
+
+func TestPolicyReporterSurfacesWarnings(t *testing.T) {
+	// A throttled/partial scan must be visible so an incomplete policy isn't mistaken for complete.
+	data := Data{
+		Config: ReportConfig{StaleDays: 90},
+		Errors: []string{"eu-central-1/repo-x: ThrottlingException", "eu-central-1/repo-y: timeout"},
+	}
+	var buf bytes.Buffer
+	if err := (&PolicyReporter{Writer: &buf}).Generate(data); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "Warnings (2)") {
+		t.Errorf("expected warnings header, got:\n%s", out)
+	}
+	if !strings.Contains(out, "ThrottlingException") {
+		t.Errorf("expected error text surfaced, got:\n%s", out)
+	}
+}

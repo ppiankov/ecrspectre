@@ -54,6 +54,7 @@ func (r *DeleteScriptReporter) Generate(data Data) error {
 	}
 	w.println("")
 	w.printf("# %d candidate(s). Review the commands above before running.\n", count)
+	writeWarnings(w, data.Errors)
 	return w.err
 }
 
