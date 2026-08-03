@@ -32,6 +32,8 @@ Audits AWS ECR repositories for stale, untagged, oversized, and (optionally) vul
 - `--format sarif` — SARIF v2.1.0 for CI integration
 - `--format spectrehub` — SpectreHub aggregator format
 - `--format text` — human-readable table (default)
+- `--format policy` — emit a recommended ECR lifecycle policy (AWS JSON) with apply commands
+- `--format delete-script` — print dry-run `aws ecr batch-delete-image` commands for cleanup candidates
 - `--output`, `-o` — write the report to a file instead of stdout
 - `--include-scan` — include ECR vulnerability scan data when available
 - `--no-progress` — suppress progress output to stderr

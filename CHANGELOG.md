@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-03
+
+### Added
+- Retention engine: configurable keep rules (protected tags, keep-latest-N optionally per semver major, keep-last-per-branch, minimum age) via the `retention:` config section
+- `--format policy`: emits a recommended ECR lifecycle policy (AWS JSON) with per-repository apply commands — read-only, never applies it
+- `--format delete-script`: prints dry-run `aws ecr batch-delete-image` commands for stale/untagged images not protected by a retention rule — never executes
+- Scan errors are now surfaced in the policy and delete-script outputs so a throttled/partial scan is never mistaken for complete
+
 ## [0.2.0] - 2026-08-03
 
 ### Added

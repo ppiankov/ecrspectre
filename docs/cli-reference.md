@@ -43,6 +43,10 @@ Generate a sample config with `ecrspectre init`.
 
 **SpectreHub** (`--format spectrehub`): `spectre/v1` envelope for SpectreHub ingestion.
 
+**Policy** (`--format policy`): recommended ECR lifecycle policy (AWS JSON) with per-repository `put-lifecycle-policy` apply commands. Read-only — does not apply it.
+
+**Delete script** (`--format delete-script`): dry-run `aws ecr batch-delete-image` commands for stale/untagged images not protected by a retention rule. Never executes.
+
 
 ## Architecture
 
