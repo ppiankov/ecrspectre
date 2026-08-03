@@ -25,12 +25,10 @@ type PolicyConfig struct {
 // WO-14: TagStatus is the ECR lifecycle selection tagStatus value.
 type TagStatus string
 
+// WO-14: TagStatus values for ECR lifecycle selection (any/tagged/untagged).
 const (
-	// WO-14: TagStatusAny matches tagged and untagged images.
-	TagStatusAny TagStatus = "any"
-	// WO-14: TagStatusTagged matches images carrying at least one tag.
-	TagStatusTagged TagStatus = "tagged"
-	// WO-14: TagStatusUntagged matches images with no tags.
+	TagStatusAny      TagStatus = "any"
+	TagStatusTagged   TagStatus = "tagged"
 	TagStatusUntagged TagStatus = "untagged"
 )
 
@@ -126,15 +124,12 @@ func terraformResourceName(repo string) string {
 // WO-14: Confidence rates how safe an image is to delete.
 type Confidence string
 
+// WO-14: Confidence values rate how safe an image is to delete.
 const (
-	// WO-14: ConfKeep means retained by a retention rule (do not delete).
-	ConfKeep Confidence = "keep"
-	// WO-14: ConfHigh means untagged and stale.
-	ConfHigh Confidence = "high"
-	// WO-14: ConfMedium means stale.
+	ConfKeep   Confidence = "keep"
+	ConfHigh   Confidence = "high"
 	ConfMedium Confidence = "medium"
-	// WO-14: ConfLow means other (e.g. only oversized).
-	ConfLow Confidence = "low"
+	ConfLow    Confidence = "low"
 )
 
 // WO-14: ScoreFinding maps a finding's signals + retention verdict to a delete

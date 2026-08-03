@@ -32,7 +32,7 @@ type Target struct {
 	URIHash string `json:"uri_hash"`
 }
 
-// ReportConfig captures the scan configuration used.
+// WO-14: ReportConfig captures the scan configuration used (carries Retention for the policy/delete reporters).
 type ReportConfig struct {
 	Provider       string           `json:"provider"`
 	Regions        []string         `json:"regions"`

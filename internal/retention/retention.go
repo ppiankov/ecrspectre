@@ -14,10 +14,9 @@ import (
 // WO-13: Decision is the retention verdict for a single image.
 type Decision string
 
+// WO-13: Keep (retain) and Candidate (cleanup-eligible) Decision values.
 const (
-	// WO-13: Keep means the image must be retained regardless of waste findings.
-	Keep Decision = "keep"
-	// WO-13: Candidate means the image is eligible for cleanup (subject to the caller's policy).
+	Keep      Decision = "keep"
 	Candidate Decision = "candidate"
 )
 
