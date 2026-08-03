@@ -35,12 +35,12 @@ type Exclude struct {
 // Consumed by the retention engine (internal/retention) via the lifecycle-policy
 // generator and the finding classifier (WO-13).
 type Retention struct {
-	KeepLatestN         int      `yaml:"keep_latest_n"`
-	KeepLatestNPerMajor bool     `yaml:"keep_latest_n_per_major"`
-	KeepLastPerBranch   bool     `yaml:"keep_last_per_branch"`
-	BranchPattern       string   `yaml:"branch_pattern"`
-	ProtectTags         []string `yaml:"protect_tags"`
-	MinAgeDays          int      `yaml:"min_age_days"`
+	KeepLatestN         int      `yaml:"keep_latest_n" json:"keep_latest_n,omitempty"`
+	KeepLatestNPerMajor bool     `yaml:"keep_latest_n_per_major" json:"keep_latest_n_per_major,omitempty"`
+	KeepLastPerBranch   bool     `yaml:"keep_last_per_branch" json:"keep_last_per_branch,omitempty"`
+	BranchPattern       string   `yaml:"branch_pattern" json:"branch_pattern,omitempty"`
+	ProtectTags         []string `yaml:"protect_tags" json:"protect_tags,omitempty"`
+	MinAgeDays          int      `yaml:"min_age_days" json:"min_age_days,omitempty"`
 }
 
 // TimeoutDuration parses the timeout string as a duration.

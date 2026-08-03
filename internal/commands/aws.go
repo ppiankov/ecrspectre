@@ -43,7 +43,7 @@ func init() {
 	awsCmd.Flags().StringVar(&awsFlags.profile, "profile", "", "AWS profile name")
 	awsCmd.Flags().IntVar(&awsFlags.staleDays, "stale-days", 90, "Image age threshold in days since last pull")
 	awsCmd.Flags().IntVar(&awsFlags.maxSizeMB, "max-size", 1024, "Flag images larger than this (MB)")
-	awsCmd.Flags().StringVar(&awsFlags.format, "format", "text", "Output format: text, json, sarif, spectrehub")
+	awsCmd.Flags().StringVar(&awsFlags.format, "format", "text", "Output format: text, json, sarif, spectrehub, policy, delete-script")
 	awsCmd.Flags().StringVarP(&awsFlags.outputFile, "output", "o", "", "Output file path (default: stdout)")
 	awsCmd.Flags().Float64Var(&awsFlags.minMonthlyCost, "min-monthly-cost", 0.10, "Minimum monthly cost to report ($)")
 	awsCmd.Flags().BoolVar(&awsFlags.includeScan, "include-scan", false, "Include vulnerability scan data if available")
@@ -136,6 +136,7 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 			StaleDays:      awsFlags.staleDays,
 			MaxSizeMB:      awsFlags.maxSizeMB,
 			MinMonthlyCost: awsFlags.minMonthlyCost,
+			Retention:      cfg.Retention,
 		},
 		Findings: analysis.Findings,
 		Summary:  analysis.Summary,
@@ -181,8 +182,12 @@ func selectReporter(format, outputFile string) (report.Reporter, error) {
 		return &report.SARIFReporter{Writer: w}, nil
 	case "spectrehub":
 		return &report.SpectreHubReporter{Writer: w}, nil
+	case "policy":
+		return &report.PolicyReporter{Writer: w}, nil
+	case "delete-script":
+		return &report.DeleteScriptReporter{Writer: w}, nil
 	default:
-		return nil, fmt.Errorf("unsupported format: %s (use text, json, sarif, or spectrehub)", format)
+		return nil, fmt.Errorf("unsupported format: %s (use text, json, sarif, spectrehub, policy, or delete-script)", format)
 	}
 }
 
