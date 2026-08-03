@@ -8,6 +8,7 @@ import (
 	"github.com/ppiankov/ecrspectre/internal/registry"
 )
 
+// WO-14: PolicyReporter emits policy JSON + deduped per-repo apply commands.
 func TestPolicyReporter(t *testing.T) {
 	data := Data{
 		Config: ReportConfig{StaleDays: 90},
@@ -36,6 +37,7 @@ func TestPolicyReporter(t *testing.T) {
 	}
 }
 
+// WO-14: with no findings, the reporter notes no repositories surfaced.
 func TestPolicyReporterNoFindings(t *testing.T) {
 	var buf bytes.Buffer
 	if err := (&PolicyReporter{Writer: &buf}).Generate(Data{}); err != nil {
@@ -46,6 +48,7 @@ func TestPolicyReporterNoFindings(t *testing.T) {
 	}
 }
 
+// WO-14: scan errors are surfaced so a partial policy is not mistaken for complete.
 func TestPolicyReporterSurfacesWarnings(t *testing.T) {
 	// A throttled/partial scan must be visible so an incomplete policy isn't mistaken for complete.
 	data := Data{

@@ -43,6 +43,7 @@ func init() {
 	awsCmd.Flags().StringVar(&awsFlags.profile, "profile", "", "AWS profile name")
 	awsCmd.Flags().IntVar(&awsFlags.staleDays, "stale-days", 90, "Image age threshold in days since last pull")
 	awsCmd.Flags().IntVar(&awsFlags.maxSizeMB, "max-size", 1024, "Flag images larger than this (MB)")
+	// WO-14: policy and delete-script output formats.
 	awsCmd.Flags().StringVar(&awsFlags.format, "format", "text", "Output format: text, json, sarif, spectrehub, policy, delete-script")
 	awsCmd.Flags().StringVarP(&awsFlags.outputFile, "output", "o", "", "Output file path (default: stdout)")
 	awsCmd.Flags().Float64Var(&awsFlags.minMonthlyCost, "min-monthly-cost", 0.10, "Minimum monthly cost to report ($)")
@@ -182,6 +183,7 @@ func selectReporter(format, outputFile string) (report.Reporter, error) {
 		return &report.SARIFReporter{Writer: w}, nil
 	case "spectrehub":
 		return &report.SpectreHubReporter{Writer: w}, nil
+	// WO-14: policy emits a lifecycle policy; delete-script prints dry-run batch-delete commands.
 	case "policy":
 		return &report.PolicyReporter{Writer: w}, nil
 	case "delete-script":

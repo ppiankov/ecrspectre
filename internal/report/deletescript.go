@@ -10,13 +10,12 @@ import (
 )
 
 // WO-14: DeleteScriptReporter prints `aws ecr batch-delete-image` commands for
-// findings that are delete candidates (stale or untagged) and not protected by a
-// retention rule. It NEVER executes them — output only.
+// delete-candidate findings not protected by a retention rule. NEVER executes.
 type DeleteScriptReporter struct {
 	Writer io.Writer
 }
 
-// Generate writes the dry-run delete commands.
+// WO-14: Generate writes the dry-run delete commands.
 func (r *DeleteScriptReporter) Generate(data Data) error {
 	protect := data.Config.Retention.ProtectTags
 	if len(protect) == 0 {
@@ -58,12 +57,12 @@ func (r *DeleteScriptReporter) Generate(data Data) error {
 	return w.err
 }
 
-// isDeleteCandidate reports whether a finding represents a stale or untagged image.
+// WO-14: isDeleteCandidate reports whether a finding is a stale or untagged image.
 func isDeleteCandidate(f registry.Finding) bool {
 	return f.ID == registry.FindingStaleImage || f.ID == registry.FindingUntaggedImage
 }
 
-// tagsOf extracts image tags from a finding's ResourceName ("repo:tag1,tag2").
+// WO-14: tagsOf extracts image tags from a finding's ResourceName ("repo:tag1,tag2").
 func tagsOf(f registry.Finding) []string {
 	name := f.ResourceName
 	if i := strings.IndexByte(name, ':'); i >= 0 {
@@ -75,7 +74,7 @@ func tagsOf(f registry.Finding) []string {
 	return strings.Split(name, ",")
 }
 
-// digestOf returns the image digest from metadata, falling back to the ResourceID.
+// WO-14: digestOf returns the image digest from metadata, falling back to ResourceID.
 func digestOf(f registry.Finding) string {
 	if d, ok := f.Metadata["digest"].(string); ok && d != "" {
 		return d
@@ -86,7 +85,7 @@ func digestOf(f registry.Finding) string {
 	return ""
 }
 
-// pushedAt reconstructs an approximate push time from the finding's days_stale.
+// WO-14: pushedAt reconstructs an approximate push time from the finding's days_stale.
 func pushedAt(f registry.Finding, now time.Time) time.Time {
 	if days := metaInt(f.Metadata, "days_stale"); days > 0 {
 		return now.Add(-time.Duration(days) * 24 * time.Hour)
@@ -94,7 +93,7 @@ func pushedAt(f registry.Finding, now time.Time) time.Time {
 	return time.Time{}
 }
 
-// metaInt reads an int from a findings metadata map, tolerating int/int64/float64.
+// WO-14: metaInt reads an int from findings metadata, tolerating int/int64/float64.
 func metaInt(m map[string]any, key string) int {
 	switch n := m[key].(type) {
 	case int:

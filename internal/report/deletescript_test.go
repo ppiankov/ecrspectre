@@ -10,6 +10,7 @@ import (
 	"github.com/ppiankov/ecrspectre/internal/registry"
 )
 
+// WO-14: emits delete commands for stale/untagged images, excluding protected tags.
 func TestDeleteScriptReporter(t *testing.T) {
 	data := Data{
 		Config:    ReportConfig{StaleDays: 90},
@@ -39,6 +40,7 @@ func TestDeleteScriptReporter(t *testing.T) {
 	}
 }
 
+// WO-14: below-min-age images are excluded from the delete script.
 func TestDeleteScriptReporterMinAgeExcludes(t *testing.T) {
 	// A stale image younger than the retention min-age must be kept.
 	data := Data{

@@ -8,6 +8,7 @@ import (
 	"github.com/ppiankov/ecrspectre/internal/retention"
 )
 
+// WO-14: full config yields protect -> keep-latest-N -> untagged -> stale rules.
 func TestGenerateLifecyclePolicy(t *testing.T) {
 	cfg := PolicyConfig{
 		KeepLatestN:  30,
@@ -43,6 +44,7 @@ func TestGenerateLifecyclePolicy(t *testing.T) {
 	}
 }
 
+// WO-14: a single threshold yields exactly one rule.
 func TestGenerateLifecyclePolicyMinimal(t *testing.T) {
 	p := GenerateLifecyclePolicy(PolicyConfig{StaleDays: 60})
 	if len(p.Rules) != 1 {
@@ -56,12 +58,14 @@ func TestGenerateLifecyclePolicyMinimal(t *testing.T) {
 	}
 }
 
+// WO-14: an empty config yields no rules.
 func TestGenerateLifecyclePolicyEmpty(t *testing.T) {
 	if p := GenerateLifecyclePolicy(PolicyConfig{}); len(p.Rules) != 0 {
 		t.Fatalf("got %d rules, want 0 for empty config", len(p.Rules))
 	}
 }
 
+// WO-14: generated policy JSON round-trips through unmarshal.
 func TestGeneratePolicyJSON(t *testing.T) {
 	js, err := GeneratePolicyJSON(PolicyConfig{StaleDays: 90})
 	if err != nil {
@@ -76,6 +80,7 @@ func TestGeneratePolicyJSON(t *testing.T) {
 	}
 }
 
+// WO-14: Terraform output names the resource, repo, and embeds the policy.
 func TestGenerateTerraform(t *testing.T) {
 	out, err := GenerateTerraform("talala/ads-core-backend", PolicyConfig{StaleDays: 90})
 	if err != nil {
@@ -93,6 +98,7 @@ func TestGenerateTerraform(t *testing.T) {
 	}
 }
 
+// WO-14: repo names are sanitized into valid Terraform labels.
 func TestTerraformResourceName(t *testing.T) {
 	tests := map[string]string{
 		"talala/ads-core-backend": "talala_ads_core_backend",
@@ -107,6 +113,7 @@ func TestTerraformResourceName(t *testing.T) {
 	}
 }
 
+// WO-14: ScoreFinding maps signals + retention verdict to delete confidence.
 func TestScoreFinding(t *testing.T) {
 	tests := []struct {
 		name      string

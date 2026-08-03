@@ -11,18 +11,16 @@ import (
 	"github.com/ppiankov/ecrspectre/internal/retention"
 )
 
-// defaultUntaggedDays is the untagged-image expiry used when the scan config
-// carries none (untagged images are rarely worth keeping long).
+// WO-14: defaultUntaggedDays is the untagged-image expiry used when unset.
 const defaultUntaggedDays = 7
 
-// WO-14: PolicyReporter emits a recommended ECR lifecycle policy derived from the
-// scan config + retention rules, with per-repository apply commands. Read-only —
-// it only prints; it never calls put-lifecycle-policy.
+// WO-14: PolicyReporter emits a recommended ECR lifecycle policy + per-repo apply
+// commands. Read-only — it only prints; never calls put-lifecycle-policy.
 type PolicyReporter struct {
 	Writer io.Writer
 }
 
-// Generate writes the recommended lifecycle policy and apply commands.
+// WO-14: Generate writes the recommended lifecycle policy and apply commands.
 func (r *PolicyReporter) Generate(data Data) error {
 	cfg := policy.PolicyConfig{
 		StaleDays:    data.Config.StaleDays,
@@ -60,8 +58,8 @@ func (r *PolicyReporter) Generate(data Data) error {
 	return w.err
 }
 
-// writeWarnings appends a capped warnings section so a partial/throttled scan is
-// visible — without it, an incomplete policy or delete-script looks complete.
+// WO-14: writeWarnings appends a capped warnings section so a partial/throttled
+// scan is visible — without it, an incomplete policy or delete-script looks complete.
 func writeWarnings(w *errWriter, errors []string) {
 	if len(errors) == 0 {
 		return
@@ -78,7 +76,7 @@ func writeWarnings(w *errWriter, errors []string) {
 	}
 }
 
-// distinctRepos returns the sorted, de-duplicated repository names from image findings.
+// WO-14: distinctRepos returns sorted, de-duplicated repo names from image findings.
 func distinctRepos(findings []registry.Finding) []string {
 	seen := make(map[string]bool)
 	var repos []string
@@ -97,8 +95,7 @@ func distinctRepos(findings []registry.Finding) []string {
 	return repos
 }
 
-// repoOf extracts the repository name from an image resource id, which is either
-// "repo@digest" or "repo:tag".
+// WO-14: repoOf extracts the repo name from "repo@digest" or "repo:tag".
 func repoOf(resourceID string) string {
 	if i := strings.IndexByte(resourceID, '@'); i >= 0 {
 		return resourceID[:i]

@@ -1,5 +1,5 @@
 // WO-14: turn scan findings + retention rules into a recommended ECR lifecycle
-// policy and a confidence-scored delete plan. Output-only — it never deletes; it
+// policy and a confidence-scored delete plan. Output-only — never deletes; it
 // produces a human-reviewable plan (AWS JSON, Terraform, delete script).
 package policy
 
@@ -11,28 +11,30 @@ import (
 	"github.com/ppiankov/ecrspectre/internal/retention"
 )
 
-// protectKeepDefault is the countNumber used by the "keep protected tags" rule.
-// ECR lifecycle policies have no "never expire" action, so a large countNumber
-// keeps all practically-relevant protected images; the operator tunes the output.
+// WO-14: protectKeepDefault is the countNumber for the "keep protected tags" rule.
 const protectKeepDefault = 100
 
-// PolicyConfig captures the thresholds encoded into a recommended lifecycle policy.
+// WO-14: PolicyConfig captures the thresholds encoded into a lifecycle policy.
 type PolicyConfig struct {
-	KeepLatestN  int      // keep the N most recent images (0 = omit the rule)
-	UntaggedDays int      // expire untagged images older than this (0 = omit)
-	StaleDays    int      // expire tagged images older than this (0 = omit)
-	ProtectTags  []string // tags to keep (e.g. latest, release)
+	KeepLatestN  int
+	UntaggedDays int
+	StaleDays    int
+	ProtectTags  []string
 }
 
-// TagStatus is the ECR lifecycle selection tagStatus value.
+// WO-14: TagStatus is the ECR lifecycle selection tagStatus value.
 type TagStatus string
 
 const (
-	TagStatusAny      TagStatus = "any"
-	TagStatusTagged   TagStatus = "tagged"
+	// WO-14: TagStatusAny matches tagged and untagged images.
+	TagStatusAny TagStatus = "any"
+	// WO-14: TagStatusTagged matches images carrying at least one tag.
+	TagStatusTagged TagStatus = "tagged"
+	// WO-14: TagStatusUntagged matches images with no tags.
 	TagStatusUntagged TagStatus = "untagged"
 )
 
+// WO-14: selection is one lifecycle-rule selection clause (AWS schema subset).
 type selection struct {
 	TagStatus      TagStatus `json:"tagStatus"`
 	TagPatternList []string  `json:"tagPatternList,omitempty"`
@@ -41,11 +43,12 @@ type selection struct {
 	CountNumber    int       `json:"countNumber,omitempty"`
 }
 
+// WO-14: expireAction is the lifecycle-rule expire action.
 type expireAction struct {
 	Type string `json:"type"`
 }
 
-// LifecycleRule is one ECR lifecycle-policy rule.
+// WO-14: LifecycleRule is one ECR lifecycle-policy rule.
 type LifecycleRule struct {
 	RulePriority int           `json:"rulePriority"`
 	Description  string        `json:"description,omitempty"`
@@ -53,14 +56,13 @@ type LifecycleRule struct {
 	Action       *expireAction `json:"action"`
 }
 
-// LifecyclePolicy is the AWS ECR policy document.
+// WO-14: LifecyclePolicy is the AWS ECR policy document.
 type LifecyclePolicy struct {
 	Rules []LifecycleRule `json:"rules"`
 }
 
-// GenerateLifecyclePolicy builds a recommended ECR lifecycle policy. Rules are
-// ordered protect-tags -> keep-latest-N -> expire-untagged -> expire-stale, the
-// standard cleanup pattern. Returns an empty policy if no thresholds are set.
+// WO-14: GenerateLifecyclePolicy builds a recommended ECR lifecycle policy. Rules
+// are ordered protect-tags -> keep-latest-N -> expire-untagged -> expire-stale.
 func GenerateLifecyclePolicy(cfg PolicyConfig) LifecyclePolicy {
 	var rules []LifecycleRule
 	pri := 1
@@ -92,13 +94,13 @@ func GenerateLifecyclePolicy(cfg PolicyConfig) LifecyclePolicy {
 	return LifecyclePolicy{Rules: rules}
 }
 
-// GeneratePolicyJSON returns the lifecycle policy as pretty-printed AWS JSON.
+// WO-14: GeneratePolicyJSON returns the lifecycle policy as pretty-printed AWS JSON.
 func GeneratePolicyJSON(cfg PolicyConfig) ([]byte, error) {
 	return json.MarshalIndent(GenerateLifecyclePolicy(cfg), "", "  ")
 }
 
-// GenerateTerraform returns an aws_ecr_lifecycle_policy resource for the repo
-// with the generated policy embedded as a heredoc.
+// WO-14: GenerateTerraform returns an aws_ecr_lifecycle_policy resource with the
+// generated policy embedded as a heredoc.
 func GenerateTerraform(repoName string, cfg PolicyConfig) (string, error) {
 	js, err := GeneratePolicyJSON(cfg)
 	if err != nil {
@@ -108,8 +110,7 @@ func GenerateTerraform(repoName string, cfg PolicyConfig) (string, error) {
 		terraformResourceName(repoName), repoName, js), nil
 }
 
-// terraformResourceName turns a repository name into a valid Terraform resource
-// label (replace non [A-Za-z0-9_] with '_').
+// WO-14: terraformResourceName turns a repository name into a valid Terraform label.
 func terraformResourceName(repo string) string {
 	var b strings.Builder
 	for _, r := range repo {
@@ -122,18 +123,22 @@ func terraformResourceName(repo string) string {
 	return b.String()
 }
 
-// Confidence rates how safe an image is to delete.
+// WO-14: Confidence rates how safe an image is to delete.
 type Confidence string
 
 const (
-	ConfKeep   Confidence = "keep"   // retained by a retention rule (do not delete)
-	ConfHigh   Confidence = "high"   // untagged and stale
-	ConfMedium Confidence = "medium" // stale
-	ConfLow    Confidence = "low"    // other (e.g. only oversized)
+	// WO-14: ConfKeep means retained by a retention rule (do not delete).
+	ConfKeep Confidence = "keep"
+	// WO-14: ConfHigh means untagged and stale.
+	ConfHigh Confidence = "high"
+	// WO-14: ConfMedium means stale.
+	ConfMedium Confidence = "medium"
+	// WO-14: ConfLow means other (e.g. only oversized).
+	ConfLow Confidence = "low"
 )
 
-// ScoreFinding maps a finding's signals + its retention verdict to a delete
-// confidence with a reason. A Keep verdict always wins (the image is protected).
+// WO-14: ScoreFinding maps a finding's signals + retention verdict to a delete
+// confidence with a reason; a Keep verdict always wins.
 func ScoreFinding(daysStale int, untagged bool, verdict retention.Verdict) (Confidence, string) {
 	if verdict.Decision == retention.Keep {
 		return ConfKeep, "retained: " + verdict.Reason

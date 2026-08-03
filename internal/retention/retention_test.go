@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// WO-13: mustTime parses a strict RFC3339 timestamp, panicking on error.
 func mustTime(s string) time.Time {
 	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {
@@ -13,6 +14,7 @@ func mustTime(s string) time.Time {
 	return t
 }
 
+// WO-13: table-driven coverage of Classify across all rule combinations.
 func TestClassify(t *testing.T) {
 	now := mustTime("2026-08-03T00:00:00Z")
 	daysAgo := func(n int) time.Time { return now.Add(-time.Duration(n) * 24 * time.Hour) }
@@ -139,6 +141,7 @@ func TestClassify(t *testing.T) {
 	}
 }
 
+// WO-13: invalid protect/branch regexes return an error.
 func TestClassifyInvalidRegex(t *testing.T) {
 	if _, err := Classify(nil, Rules{ProtectTags: []string{"("}}, time.Now()); err == nil {
 		t.Fatal("expected error for invalid protect regex")
@@ -148,6 +151,7 @@ func TestClassifyInvalidRegex(t *testing.T) {
 	}
 }
 
+// WO-13: majorOf parses leading version digits; non-version tags yield "".
 func TestMajorOf(t *testing.T) {
 	tests := []struct {
 		tags []string

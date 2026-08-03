@@ -9,9 +9,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config holds ecrspectre configuration loaded from .ecrspectre.yaml.
-// Provider is intentionally absent (WO-7): the cloud provider is chosen by the
-// `aws`/`gcp` subcommand, so a config-level provider key would be ambiguous.
+// WO-7: Config holds ecrspectre configuration loaded from .ecrspectre.yaml.
+// Provider is intentionally absent — the cloud provider is chosen by the aws/gcp
+// subcommand, so a config-level provider key would be ambiguous.
 type Config struct {
 	Regions        []string  `yaml:"regions"`
 	Profile        string    `yaml:"profile"`
@@ -31,9 +31,9 @@ type Exclude struct {
 	Tags        []string `yaml:"tags"`
 }
 
-// Retention configures which images to keep regardless of waste findings.
-// Consumed by the retention engine (internal/retention) via the lifecycle-policy
-// generator and the finding classifier (WO-13).
+// WO-13: Retention configures which images to keep regardless of waste findings;
+// consumed by the retention engine via the lifecycle-policy generator and the
+// finding classifier.
 type Retention struct {
 	KeepLatestN         int      `yaml:"keep_latest_n" json:"keep_latest_n,omitempty"`
 	KeepLatestNPerMajor bool     `yaml:"keep_latest_n_per_major" json:"keep_latest_n_per_major,omitempty"`
