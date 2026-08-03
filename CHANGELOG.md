@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Windows CI build leg and Windows quick-start documentation
+- Local verify gate (`.verify`, `make verify`) running vet, lint, and race tests
+
+### Changed
+- Explicit CLI flags now take precedence over config via `Flags().Changed()`; the `timeout` config key is now wired through to the scan
+- Duplicated scanner finding-builders and command helpers hoisted into shared packages
+
+### Fixed
+- `RegistryScanner` interface signature aligned with its implementations
+
+## [0.1.0] - 2026-02-28
+
+### Added
 
 - Cloud-agnostic registry types and scanner interface
 - Configuration via `.ecrspectre.yaml` with `ecrspectre init` generator
