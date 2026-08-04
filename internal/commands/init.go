@@ -114,6 +114,7 @@ timeout: 10m
 #     - "env=production"
 `
 
+// WO-16: sampleIAMPolicy includes ec2:DescribeRegions for --all-regions support.
 const sampleIAMPolicy = `{
   "Version": "2012-10-17",
   "Statement": [

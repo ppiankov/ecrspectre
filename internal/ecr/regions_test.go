@@ -14,6 +14,7 @@ type mockEC2Client struct {
 	err     error
 }
 
+// WO-16: DescribeRegions returns the mock's configured regions.
 func (m *mockEC2Client) DescribeRegions(_ context.Context, _ *ec2.DescribeRegionsInput, _ ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error) {
 	if m.err != nil {
 		return nil, m.err
