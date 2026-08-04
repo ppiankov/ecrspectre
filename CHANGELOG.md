@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-04
+
 ### Added
 - `--all-regions`: scan all enabled AWS regions in one invocation (requires `ec2:DescribeRegions`)
+- Timeout warning when a multi-region sequential scan may exceed the configured timeout
+
+### Changed
+- Added `github.com/aws/aws-sdk-go-v2/service/ec2` dependency for region enumeration
 
 ## [0.3.0] - 2026-08-03
 
