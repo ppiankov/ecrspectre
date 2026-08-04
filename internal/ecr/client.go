@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	ecrtypes "github.com/aws/aws-sdk-go-v2/service/ecr/types"
 )
@@ -57,6 +59,41 @@ func (c *Client) NewECRClient() ECRAPI {
 // Region returns the configured region.
 func (c *Client) Region() string {
 	return c.cfg.Region
+}
+
+// WO-16: EC2API defines the subset of the EC2 API used by ecrspectre.
+type EC2API interface {
+	DescribeRegions(ctx context.Context, input *ec2.DescribeRegionsInput, opts ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error)
+}
+
+// WO-16: NewEC2Client creates an EC2 service client from the stored config.
+func (c *Client) NewEC2Client() EC2API {
+	return ec2.NewFromConfig(c.cfg)
+}
+
+// WO-16: ListRegions returns the account's enabled AWS regions sorted by name.
+// ec2:DescribeRegions with no filters returns only enabled (opted-in) regions.
+func ListRegions(ctx context.Context, client EC2API) ([]string, error) {
+	out, err := client.DescribeRegions(ctx, &ec2.DescribeRegionsInput{})
+	if err != nil {
+		return nil, fmt.Errorf("describe regions: %w", err)
+	}
+	var regions []string
+	for _, r := range out.Regions {
+		if r.RegionName != nil && *r.RegionName != "" {
+			regions = append(regions, *r.RegionName)
+		}
+	}
+	sort.Strings(regions)
+	return regions, nil
+}
+
+// WO-16: NewECRClientForRegion returns an ECR client scoped to the given region,
+// reusing the loaded config (multi-region scan without reloading config).
+func (c *Client) NewECRClientForRegion(region string) ECRAPI {
+	cfg := c.cfg.Copy()
+	cfg.Region = region
+	return ecr.NewFromConfig(cfg)
 }
 
 // ListRepositories returns all ECR repositories using pagination.
