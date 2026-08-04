@@ -50,6 +50,7 @@ make build
 
 ```sh
 ecrspectre aws --region us-east-1 --format json
+ecrspectre aws --all-regions --format delete-script
 ```
 
 ## CLI commands

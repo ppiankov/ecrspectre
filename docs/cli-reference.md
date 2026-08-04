@@ -30,7 +30,7 @@ min_monthly_cost: 0.10
 format: text
 ```
 
-Generate a sample config with `ecrspectre init`.
+Generate a sample config with `ecrspectre init`. To scan all enabled regions, pass `--all-regions` (requires `ec2:DescribeRegions`).
 
 
 ## Output formats

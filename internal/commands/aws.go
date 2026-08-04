@@ -112,7 +112,7 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 		regions = []string{resolvedRegion}
 	}
 
-	// R1/WO-18: warn when multi-region scan may exceed the timeout.
+	// WO-18: warn when multi-region scan may exceed the timeout.
 	if awsFlags.allRegions && len(regions) > 1 {
 		slog.Warn("Multi-region scan may exceed the configured timeout; increase --timeout if results are incomplete",
 			"regions", len(regions), "timeout", awsFlags.timeout)

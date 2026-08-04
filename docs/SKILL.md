@@ -39,6 +39,7 @@ Audits AWS ECR repositories for stale, untagged, oversized, and (optionally) vul
 - `--no-progress` — suppress progress output to stderr
 - `--timeout` — scan timeout (default 10m)
 - `--exclude-tags` — exclude resources by tag (`Key=Value`, comma-separated)
+- `--all-regions` — scan all enabled AWS regions (requires `ec2:DescribeRegions`)
 
 ### ecrspectre gcp
 

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--all-regions`: scan all enabled AWS regions in one invocation (requires `ec2:DescribeRegions`)
+
 ## [0.3.0] - 2026-08-03
 
 ### Added
