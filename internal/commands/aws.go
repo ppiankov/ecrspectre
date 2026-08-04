@@ -26,6 +26,7 @@ var awsFlags struct {
 	minMonthlyCost float64
 	includeScan    bool
 	noProgress     bool
+	allRegions     bool
 	timeout        time.Duration
 	excludeTags    []string
 }
@@ -51,6 +52,8 @@ func init() {
 	awsCmd.Flags().BoolVar(&awsFlags.noProgress, "no-progress", false, "Disable progress output")
 	awsCmd.Flags().DurationVar(&awsFlags.timeout, "timeout", 10*time.Minute, "Scan timeout")
 	awsCmd.Flags().StringSliceVar(&awsFlags.excludeTags, "exclude-tags", nil, "Exclude resources by tag (Key=Value, comma-separated)")
+	// WO-16: scan all enabled regions.
+	awsCmd.Flags().BoolVar(&awsFlags.allRegions, "all-regions", false, "Scan all enabled AWS regions (requires ec2:DescribeRegions)")
 }
 
 func runAWS(cmd *cobra.Command, _ []string) error {
@@ -89,11 +92,25 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 		return enhanceError("initialize AWS client", err)
 	}
 
-	resolvedRegion := client.Region()
-	if resolvedRegion == "" {
-		return fmt.Errorf("no AWS region configured; use --region or set AWS_REGION")
+	// WO-16: determine regions to scan (--all-regions enumerates via ec2:DescribeRegions).
+	var regions []string
+	if awsFlags.allRegions {
+		rs, err := ecr.ListRegions(ctx, client.NewEC2Client())
+		if err != nil {
+			return enhanceError("list regions", err)
+		}
+		if len(rs) == 0 {
+			return fmt.Errorf("--all-regions: no enabled regions returned by ec2:DescribeRegions")
+		}
+		regions = rs
+		slog.Info("Scanning all enabled regions", "count", len(regions))
+	} else {
+		resolvedRegion := client.Region()
+		if resolvedRegion == "" {
+			return fmt.Errorf("no AWS region configured; use --region, set AWS_REGION, or pass --all-regions")
+		}
+		regions = []string{resolvedRegion}
 	}
-	slog.Info("Scanning ECR", "region", resolvedRegion)
 
 	// WO-8: build scan config; exclude-ID map hoisted to shared builder.
 	excludeIDs := buildExcludeIDs(cfg.Exclude.ResourceIDs)
@@ -109,13 +126,18 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 		},
 	}
 
-	// Run scanner
-	scanner := ecr.NewECRScanner(client.NewECRClient(), resolvedRegion, awsFlags.includeScan)
-
 	// WO-8: progress callback hoisted to shared helper.
 	progressFn := stderrProgressFn(awsFlags.noProgress)
 
-	result := scanner.Scan(ctx, scanCfg, progressFn)
+	// WO-16: scan each region sequentially, merging results into one aggregate
+	// (bounded concurrency is a separate performance WO; sequential avoids
+	// exacerbating ECR throttling on large accounts).
+	result := &registry.ScanResult{}
+	for _, region := range regions {
+		slog.Info("Scanning ECR", "region", region)
+		scanner := ecr.NewECRScanner(client.NewECRClientForRegion(region), region, awsFlags.includeScan)
+		mergeScanResults(result, scanner.Scan(ctx, scanCfg, progressFn))
+	}
 
 	// Analyze results
 	analysis := analyzer.Analyze(result, analyzer.AnalyzerConfig{
@@ -129,11 +151,11 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 		Timestamp: time.Now().UTC(),
 		Target: report.Target{
 			Type:    "ecr",
-			URIHash: computeTargetHash("aws", []string{resolvedRegion}, profile),
+			URIHash: computeTargetHash("aws", regions, profile),
 		},
 		Config: report.ReportConfig{
 			Provider:       "aws",
-			Regions:        []string{resolvedRegion},
+			Regions:        regions,
 			StaleDays:      awsFlags.staleDays,
 			MaxSizeMB:      awsFlags.maxSizeMB,
 			MinMonthlyCost: awsFlags.minMonthlyCost,
@@ -150,6 +172,14 @@ func runAWS(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	return reporter.Generate(data)
+}
+
+// WO-16: mergeScanResults merges src into dst (aggregates multi-region scans).
+func mergeScanResults(dst, src *registry.ScanResult) {
+	dst.Findings = append(dst.Findings, src.Findings...)
+	dst.Errors = append(dst.Errors, src.Errors...)
+	dst.ResourcesScanned += src.ResourcesScanned
+	dst.RepositoriesScanned += src.RepositoriesScanned
 }
 
 // WO-8: applies config defaults for unset AWS flags; delegates to the shared

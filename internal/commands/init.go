@@ -127,6 +127,7 @@ const sampleIAMPolicy = `{
         "ecr:BatchGetImage",
         "ecr:GetLifecyclePolicy",
         "ecr:DescribeImageScanFindings",
+        "ec2:DescribeRegions",
         "sts:GetCallerIdentity"
       ],
       "Resource": "*"
